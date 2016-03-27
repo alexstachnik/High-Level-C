@@ -82,7 +82,7 @@ matchStmt x =
   case y of
     Just (CBlockStmt (CExpr (Just (CVar (Ident str hash _) _)) info)) ->
       case take 2 str of
-        "$$" -> error "Type variable occured in expression context"
+        "$$" -> error "Type variable occured in statement context"
         ('$' : _) -> Just $ do
           let infoTH = dataToExpQ (const Nothing) info
           TH.appE (TH.varE (TH.mkName $ drop 1 str)) infoTH

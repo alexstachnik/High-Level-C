@@ -16,6 +16,8 @@ import Language.C.Syntax.Constants
 
 import Quasi.QuasiC
 
+import Util.CTypes
+
 main :: IO ()
 main = print 3
 
@@ -32,6 +34,11 @@ z = let x info =  (CConst (CIntConst (cInteger 3) info)) in
 
 c = [cDecl|char f(int y, int z) {x=3;}|]
   
-d = [cStmt|{int *x;}|]
+d = [cStmt|{void (*f)(struct foo,unsigned char);}|]
 
-q = [cDecl| struct Foo {int x;}; |]
+
+e = [cStmt|{void (*f())();}|]
+
+q = [cStmt|{typedef int foo; foo y;} |]
+
+
