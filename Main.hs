@@ -16,8 +16,6 @@ import Language.C.Syntax.Constants
 
 import Quasi.QuasiC
 
-import Util.CTypes
-
 main :: IO ()
 main = print 3
 
@@ -36,6 +34,8 @@ c = [cDecl|char f(int y, int z) {x=3;}|]
   
 d = [cStmt|{void (*f)(struct foo,unsigned char);}|]
 
+
+u = [cStmt|{int x[];}|]
 
 e = [cStmt|{void (*f())();}|]
 
