@@ -2,3 +2,7 @@ dist/
 .cabal-sandbox/
 Setup.hs
 cabal.sandbox.config
+*.o
+*.hi
+*.dyn_hi
+*.dyn_o

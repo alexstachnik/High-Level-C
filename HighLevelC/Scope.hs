@@ -1,29 +1,31 @@
+{-# LANGUAGE RecordWildCards #-}
 module HighLevelC.Scope where
 
 import qualified Data.Map as M
 
+import Util.Names
+
 import IntermediateLang.ILTypes
 import HighLevelC.HLCTypes
 
-newtype Scope = Scope [M.Map Symbol ILType]
-              deriving (Show,Eq,Ord)
+data Scope = Scope {typeNS :: DuplicateTable,
+                    varNS :: DuplicateTable}
+           deriving (Show,Eq,Ord)
 
 emptyScope :: Scope
-emptyScope = Scope [M.empty]
+emptyScope = Scope {typeNS = emptyDuplicateTable,
+                    varNS = emptyDuplicateTable}
 
-popScope :: Scope -> Scope
-popScope (Scope (x:xs)) = Scope xs
+makeTypeSymbol :: String -> Scope -> (Scope,Symbol)
+makeTypeSymbol baseName (Scope {..}) =
+  let (newTbl,symb) = makeSymbol baseName typeNS in
+  (Scope {typeNS = newTbl,..},symb)
 
-pushScope :: Scope -> Scope
-pushScope (Scope xs) = Scope (M.empty : xs)
+insertTypeSymbol :: Symbol -> Scope -> Scope
+insertTypeSymbol symb (Scope {..}) =
+  let newTbl = 
 
-lookupSymbol :: Scope -> Symbol -> Maybe ILType
-lookupSymbol (Scope (x:xs)) symb =
-  case M.lookup symb x of
-    Just ty -> Just ty
-    Nothing -> lookupSymbol (Scope xs) symb
-lookupSymbol (Scope []) _ = Nothing
-
-addToScope :: Scope -> Symbol -> ILType -> Scope
-addToScope (Scope (x:xs)) symb ty = Scope (M.insert symb ty x:xs)
-
+makeVarSymbol :: String -> Scope -> (Scope,Symbol)
+makeVarSymbol baseName (Scope {..}) =
+  let (newTbl,symb) = makeSymbol baseName varNS in
+  (Scope {varNS = newTbl,..},symb)

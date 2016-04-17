@@ -15,30 +15,20 @@ import Language.C.Syntax.AST
 import Language.C.Syntax.Constants
 
 import Quasi.QuasiC
+import HighLevelC.HLC
+import HighLevelC.HLCTypes
+import HighLevelC.CWriter
 
 main :: IO ()
 main = print 3
 
-f = inputStreamFromString "x=a-b;"
 
-g = execParser_ statementP f nopos
+makeCharLit :: Char -> TypedExpr Char
+makeCharLit c = TypedExpr $ CharLit c
 
---x = let hey = internalIdent "boom" in [cExpr| f(3)|]
+f :: TypedExpr Int -> TypedExpr Int -> HLC (TypedExpr Char)
+f a b = return $ makeCharLit 'c'
 
+createFunction 'f
 
-z = let x info =  (CConst (CIntConst (cInteger 3) info)) in
-  [cExpr|3+$x|]
-
-
-c = [cDecl|char f(int y, int z) {x=3;}|]
-  
-d = [cStmt|{void (*f)(struct foo,unsigned char);}|]
-
-
-u = [cStmt|{int x[];}|]
-
-e = [cStmt|{void (*f())();}|]
-
-q = [cStmt|{typedef int foo; foo y;} |]
-
-
+c = [cDecl|char f(int y, int z) {test1: x=3; test2: x=4;}|]
