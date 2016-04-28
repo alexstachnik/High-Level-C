@@ -29,7 +29,7 @@ data CWriter = CWriter {functionProtos :: Sq.Seq FunctionProto,
                         stmts :: Sq.Seq HLCStatement,
                         varDecls :: Sq.Seq Variable,
                         objectManagement :: Sq.Seq ObjectManager}
-             deriving (Eq,Ord,Show)
+             deriving (Show)
 
 instance Monoid CWriter where
   mempty = CWriter {functionProtos = Sq.empty,

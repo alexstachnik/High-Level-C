@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE EmptyDataDecls #-}
 
 module Main(main) where
 
@@ -14,21 +16,52 @@ import Language.C.Pretty
 import Language.C.Syntax.AST
 import Language.C.Syntax.Constants
 
+import Data.Typeable
+
+import Util.Names
 import Quasi.QuasiC
 import HighLevelC.HLC
 import HighLevelC.HLCTypes
 import HighLevelC.CWriter
+import HighLevelC.BasicTypes
+import IntermediateLang.ILTypes
 
 main :: IO ()
 main = print 3
 
 
-makeCharLit :: Char -> TypedExpr Char
-makeCharLit c = TypedExpr $ CharLit c
+data MyStruct deriving (Typeable)
 
-f :: TypedExpr Int -> TypedExpr Int -> HLC (TypedExpr Char)
-f a b = return $ makeCharLit 'c'
+data FieldA deriving (Typeable)
+data FieldB deriving (Typeable)
 
-createFunction 'f
+instance Struct MyStruct FieldA HLCInt
+instance Struct MyStruct FieldB HLCChar
 
-c = [cDecl|char f(int y, int z) {test1: x=3; test2: x=4;}|]
+
+
+instance HLCTypeable MyStruct where
+  structDef = Just $ makeStructDef
+    [makeStructField (Proxy :: Proxy FieldA) Nothing,
+     makeStructField (Proxy :: Proxy FieldB) Nothing]
+
+
+f_p = Function f (FuncBaseName "ff")
+  where f a = do
+          test <- makeVar (makeSafeName "test") :: HLC (TypedVar MyStruct)
+          test2 <- makeVar (makeSafeName "test2") :: HLC (TypedVar HLCInt)
+          assignVar (TypedLHSVar test2) (makeIntLit 3)
+          return makeVoid
+
+
+
+g = do
+  test <- makeInt "blah"
+  _ <- call1 f_p (varRef test)
+  return ()
+
+
+--q :: Function (TypedExpr HLCChar -> (HLC (TypedExpr HLCInt)))
+--q = ExtFunc (ExtSymbol "foo")
+
+q = [cExpr|sizeof(int)|]

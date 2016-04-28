@@ -43,6 +43,7 @@ data ILBaseType = ILVoid
                 | ILLong
                 | ILFloat
                 | ILDouble
+                | ILSizeOf
                 | ILStructRef ILTypeName
                 | ILUnionRef ILTypeName
                 | ILEnumRef ILTypeName

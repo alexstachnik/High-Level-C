@@ -18,6 +18,8 @@ import Data.Maybe(mapMaybe,listToMaybe)
 
 import Data.Typeable
 
+import Debug.Trace
+
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
@@ -29,9 +31,6 @@ import IntermediateLang.ILTypes
 
 
 newtype FuncNameTbl = FuncNameTbl {fromFuncNameTbl :: S.Set FuncBaseName}
-                      deriving (Show)
-
-newtype StructNameTbl = StructNameTbl {fromStructNameTbl :: S.Set StructBaseName}
                       deriving (Show)
 
 data CodeState = CodeState {funcInstances :: FuncInstances,
@@ -79,7 +78,7 @@ makeHLCSymbol_ safeName = do
 lookupFunc :: FunctionInst -> HLC_ (Maybe HLCSymbol)
 lookupFunc x = gets funcInstances >>= (return . M.lookup x . fromFuncInstances)
 
-lookupStruct :: StructInst -> HLC_ Bool
+lookupStruct :: StructDef -> HLC_ Bool
 lookupStruct x = gets structInstances >>= (return . S.member x. fromStructInstances)
 
 addFuncInst :: FunctionInst -> HLCSymbol -> HLC_ ()
@@ -87,45 +86,33 @@ addFuncInst inst symb = modify $ \(CodeState {..}) ->
   CodeState {funcInstances = FuncInstances $ M.insert inst symb $ fromFuncInstances funcInstances,
              ..}
 
-addStructInst :: StructInst -> HLC_ ()
+addStructInst :: StructDef -> HLC_ ()
 addStructInst inst = modify $ \(CodeState {..}) ->
   CodeState {structInstances = StructInstances $ S.insert inst $ fromStructInstances structInstances,
              ..}
 
 declareFuncInst :: FuncBaseName -> [ILType] -> HLC_ HLCSymbol
-declareFuncInst baseName args = do
+declareFuncInst baseName args = show args `trace` do
   let newName = deriveFuncName baseName args
   symb <- makeHLCSymbol_ newName
   addFuncInst (FunctionInst baseName args) symb
   return symb
 
-declareStructInst :: StructBaseName -> [ILType] -> HLC_ ILTypeName
-declareStructInst baseName args = do
-  addStructInst $ StructInst baseName args
-  return $ deriveStructName baseName args
-
-tryReserveFunc :: FuncBaseName -> Q Bool
-tryReserveFunc name = do
-  mtbl <- getQ :: Q (Maybe FuncNameTbl)
-  let tbl = maybe S.empty fromFuncNameTbl mtbl
-      found = S.member name tbl
-      newTbl = S.insert name tbl
-  putQ newTbl
-  return found
-
-tryReserveStruct :: StructBaseName -> Q Bool
-tryReserveStruct name = do
-  mtbl <- getQ :: Q (Maybe StructNameTbl)
-  let tbl = maybe S.empty fromStructNameTbl mtbl
-      found = S.member name tbl
-      newTbl = S.insert name tbl
-  putQ newTbl
-  return found
-
---makeArray :: forall a. (HLCTypeable a) => SafeName -> TypedVar Int -> HLC_ (TypedVar 
+declareStruct :: StructDef -> HLC_ ()
+declareStruct struct = do
+  exists <- lookupStruct struct
+  case exists of
+    True -> return ()
+    False -> do
+      addStructInst struct
+      writeStruct struct
 
 makeVar :: forall a. (HLCTypeable a) => SafeName -> HLC (TypedVar a)
 makeVar name = HLC $ do
+  let decl = structDef :: Maybe (TypedStructDef a)
+  case decl of
+    Just (TypedStructDef def) -> declareStruct def
+    Nothing -> return ()
   symb <- makeHLCSymbol_ name
   writeVar $ Variable symb (fromTW (hlcType :: TW a)) Nothing
   return $ TypedVar symb
@@ -140,71 +127,17 @@ assignVar lhs rhs = HLC $ writeStmt $
         helper (TypedLHSElement st name) = LHSElement (helper st) (getFieldName name)
 
 declareFunction :: forall a. (HLCTypeable a) =>
-                   String -> [Argument] -> HLC (TypedExpr a) -> HLC HLCSymbol
+                   FuncBaseName -> [Argument] -> HLC (TypedExpr a) -> HLC HLCSymbol
 declareFunction baseName args (HLC body) = HLC $ do
-  symb <- declareFuncInst (FuncBaseName baseName) $ map argumentType args
+  symb <- declareFuncInst baseName $ map argumentType args
   let retType = fromTW (hlcType :: TW a)
   writeFuncProto $ FunctionProto retType symb args
   writeFunctionM symb args body
   return symb
 
-getILTypeFromTHType :: Type -> Q Exp
-getILTypeFromTHType t =
-  appE (varE $ mkName "fromTW") $
-  sigE (varE $ mkName "hlcType") $
-  appT (conT $ mkName "TW") (return t)
-
-getArgTypes :: Name -> Q [Exp]
-getArgTypes fName = do
-  (VarI _ t _ _) <- reify fName
-  sequence $ recurse t
-    where recurse (ForallT _ _ rest) = recurse rest
-          recurse (AppT (AppT ArrowT t) rest) =
-            getILTypeFromTHType t : recurse rest
-          recurse _ = []
-
-getFunHLCSymbol :: String -> [ILType] -> HLC (Maybe HLCSymbol)
+getFunHLCSymbol :: FuncBaseName -> [ILType] -> HLC (Maybe HLCSymbol)
 getFunHLCSymbol baseName args = HLC $
-  lookupFunc $ FunctionInst (FuncBaseName baseName) args
-
-makeFunctionCall :: forall a. (HLCTypeable a) =>
-                    String -> [ILType] -> HLC (TypedExpr a) -> [HLCExpr] -> HLC (TypedExpr a)
-makeFunctionCall cFunNameStr argTypes f args = do
-  let numArgs = length argTypes
-  mSymb <- getFunHLCSymbol cFunNameStr argTypes
-  symb <- case mSymb of
-    Just s -> return s
-    Nothing -> do
-      let cArgNames = map (("arg" ++) . show) [1..numArgs]
-      argSymbols <- mapM (makeHLCSymbol . makeSafeName) cArgNames
-      declareFunction cFunNameStr (zipWith Argument argSymbols argTypes) f
-  return $ TypedExpr $ FunctionCall (ExpVar symb) args
-      
-
--- Takes a function f :: Args -> HLC (TypedExpr a) and create call_f :: Args -> HLC (TypedExpr a)
-createFunction :: Name -> Q [Dec]
-createFunction fname = do
-  let cFunName = makeFuncBaseName $ nameBase fname
-      cFunNameStr = litE $ stringL (fromFuncBaseName cFunName)
-  nameReserved <- tryReserveFunc cFunName
-  case nameReserved of
-    True -> fail ("A function with this name has already been created: " ++ fromFuncBaseName cFunName)
-    False -> return ()
-  let newFuncNameStr = "call_" ++ nameBase fname
-      newFuncName = mkName newFuncNameStr
-  newNameExists <- lookupValueName newFuncNameStr
-  case newNameExists of
-    Nothing -> return ()
-    Just _ -> fail ("Tried to generate haskell function " ++ newFuncNameStr ++ " but it already exists")
-  argTypes <- getArgTypes fname
-  argNames <- mapM newName $ map (const "x") argTypes
-  let numArgs = litE $ integerL $ fromIntegral $ length argNames
-      callToF = appsE (varE fname : map varE argNames)
-      argTypeList = return $ ListE argTypes
-      argExprs = listE $ map (appE (varE (mkName "fromTypedExpr")) . varE) argNames
-  let body = [e| makeFunctionCall $cFunNameStr $argTypeList $callToF $argExprs |]
-  retVal <- funD newFuncName [clause (map varP argNames) (normalB body) []]
-  return [retVal]
+  lookupFunc $ FunctionInst baseName args
 
 readElt :: forall structType fieldName fieldType.
            (Struct structType fieldName fieldType, Typeable fieldName) =>
@@ -216,13 +149,93 @@ readElt struct _ =
   getFieldName (Proxy :: Proxy fieldName)
 
 
-instance HLCTypeable Int where
-  hlcType = TW (BaseType Unsigned NotConst ILInt)
-  structDef = Nothing
+makeStructField :: forall structType fieldName fieldType.
+                   (Struct structType fieldName fieldType,
+                    Typeable structType,
+                    Typeable fieldName,
+                    HLCTypeable fieldType) =>
+                   Proxy fieldName ->
+                   Maybe Integer ->
+                   TypedStructField structType
+makeStructField _ mArrLen =
+  TypedStructField $
+  StructField
+  (getFieldName (Proxy :: Proxy fieldName))
+  (fromTW (hlcType :: TW fieldType))
+  mArrLen
 
-instance HLCTypeable Char where
-  hlcType = TW (BaseType Unsigned NotConst ILChar)
-  structDef = Nothing
+makeStructDef :: forall structType.
+                 (Typeable structType) =>
+                 [TypedStructField structType] ->
+                 TypedStructDef structType
+makeStructDef =
+  TypedStructDef .
+  StructDef (getILType (Proxy :: Proxy structType)) . map fromTypedStructField
+  
+data Function a = Function a FuncBaseName
+                | ExtFunc HLCSymbol
 
 
+
+call0 :: forall b.
+         (HLCTypeable b) =>
+         Function (HLC (TypedExpr b)) ->
+         HLC (TypedExpr b)
+call0 (Function f baseName) = do
+  mFSymb <- getFunHLCSymbol baseName []
+  funcName <- case mFSymb of
+    Just x -> return x
+    Nothing -> do
+      declareFunction
+        baseName
+        []
+        f
+  return $ TypedExpr $ FunctionCall (ExpVar funcName) []
+call0 (ExtFunc name) = do
+  return $ TypedExpr $ FunctionCall (ExpVar name) []
+
+
+call1 :: forall a1 b.
+         (HLCTypeable a1, HLCTypeable b) =>
+         Function (TypedExpr a1 -> HLC (TypedExpr b)) ->
+         TypedExpr a1 ->
+         HLC (TypedExpr b)
+call1 (Function f baseName) arg1 = do
+  mFSymb <- getFunHLCSymbol baseName [getObjType arg1]
+  funcName <- case mFSymb of
+    Just x -> return x
+    Nothing -> do
+      argVar1 <- makeHLCSymbol $ makeSafeName "arg1"
+      declareFunction
+        baseName
+        [Argument argVar1 (fromTW (hlcType :: TW a1))]
+        (f
+         (TypedExpr $ ExpVar argVar1))
+  return $ TypedExpr $ FunctionCall (ExpVar funcName)
+    [fromTypedExpr arg1]
+
+call2 :: forall a1 a2 b.
+         (HLCTypeable a1, HLCTypeable a2, HLCTypeable b) =>
+         Function (TypedExpr a1 -> TypedExpr a2 -> HLC (TypedExpr b)) ->
+         TypedExpr a1 ->
+         TypedExpr a2 ->
+         HLC (TypedExpr b)
+call2 (Function f baseName) arg1 arg2 = do
+  mFSymb <- getFunHLCSymbol baseName [getObjType arg1,
+                                      getObjType arg2]
+  funcName <- case mFSymb of
+    Just x -> return x
+    Nothing -> do
+      argVar1 <- makeHLCSymbol $ makeSafeName "arg1"
+      argVar2 <- makeHLCSymbol $ makeSafeName "arg2"
+      declareFunction
+        baseName
+        [Argument argVar1 (fromTW (hlcType :: TW a1)),
+         Argument argVar2 (fromTW (hlcType :: TW a2))]
+        (f
+         (TypedExpr $ ExpVar argVar1)
+         (TypedExpr $ ExpVar argVar2))
+  return $ TypedExpr $ FunctionCall (ExpVar funcName)
+    [fromTypedExpr arg1,
+     fromTypedExpr arg2]
 
