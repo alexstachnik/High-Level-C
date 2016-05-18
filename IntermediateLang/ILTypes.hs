@@ -37,12 +37,12 @@ import Language.C.Data.Position
 import Language.C.Pretty
 
 data ILBaseType = ILVoid
-                | ILChar
-                | ILShort
-                | ILInt
-                | ILLong
-                | ILFloat
-                | ILDouble
+                | ILChar TypeSign
+                | ILShort TypeSign
+                | ILInt TypeSign
+                | ILLong TypeSign
+                | ILFloat TypeSign
+                | ILDouble TypeSign
                 | ILSizeOf
                 | ILStructRef ILTypeName
                 | ILUnionRef ILTypeName
@@ -61,7 +61,7 @@ newtype ILTypeName = ILTypeName
                    deriving (Eq,Ord,Show)
 
 data ILType = FuncType ILType [ILType]
-            | BaseType TypeSign Constness ILBaseType
+            | BaseType Constness ILBaseType
             | PtrType Constness ILType
             | ArrType ILType 
             deriving (Eq,Ord,Show)
@@ -86,8 +86,8 @@ writeFuncDecl fname retType args =
   CFunDeclr (Right (argDeclrs,False)) [] undefNode
 
 writeDecl :: String -> ILType -> CDeclaration NodeInfo
-writeDecl name (BaseType sign constness ty) =
-  CDecl (typeToTypeSpecs sign constness ty) (makeDeclrList name) undefNode
+writeDecl name (BaseType constness ty) =
+  CDecl (typeToTypeSpecs constness ty) (makeDeclrList name) undefNode
 writeDecl name (PtrType constness ty) =
   let constQual = case constness of
         Const -> [CConstQual undefNode]
@@ -105,7 +105,7 @@ getDeclFromStmt :: CStatement a -> CDeclaration a
 getDeclFromStmt (CCompound _ [CBlockDecl decl] _) = decl
 
 makeConst :: ILType -> ILType
-makeConst (BaseType sign _ base) = (BaseType sign Const base)
+makeConst (BaseType _ base) = (BaseType Const base)
 makeConst (PtrType _ base) = (PtrType Const base)
 
 readType :: CDeclaration a -> ILType
@@ -129,59 +129,62 @@ procDeclr (CFunDeclr (Right (args,_)) _ _) t =
 toIdent :: ILTypeName -> Ident
 toIdent = internalIdent . fromILTypeName
 
-typeToTypeSpecs :: TypeSign -> Constness -> ILBaseType -> [CDeclarationSpecifier NodeInfo]
-typeToTypeSpecs sign constness ty = signElt ++ constElt ++ [typeElt]
-  where signElt = case sign of
+typeToTypeSpecs :: Constness -> ILBaseType -> [CDeclarationSpecifier NodeInfo]
+typeToTypeSpecs constness ty = signElt ++ constElt ++ [CTypeSpec $ fst typeElt]
+  where signElt = case snd typeElt of
           Signed -> [CTypeSpec (CSignedType undefNode)]
           Unsigned -> [CTypeSpec (CUnsigType undefNode)]
           NoSign -> []
         constElt = case constness of
           Const -> [CTypeQual (CConstQual undefNode)]
           NotConst -> []
-        typeElt = CTypeSpec $ case ty of
-          ILVoid -> CVoidType undefNode
-          ILChar -> CCharType undefNode
-          ILShort -> CShortType undefNode
-          ILInt -> CIntType undefNode
-          ILLong -> CLongType undefNode
-          ILFloat -> CFloatType undefNode
-          ILDouble -> CDoubleType undefNode
+        typeElt = case ty of
+          ILVoid -> (CVoidType undefNode,NoSign)
+          ILChar sign -> (CCharType undefNode,sign)
+          ILShort sign -> (CShortType undefNode,sign)
+          ILInt sign -> (CIntType undefNode,sign)
+          ILLong sign -> (CLongType undefNode,sign)
+          ILFloat sign -> (CFloatType undefNode,sign)
+          ILDouble sign -> (CDoubleType undefNode,sign)
           (ILStructRef tyName) ->
-            CSUType (CStruct CStructTag (Just $ toIdent tyName) Nothing [] undefNode) undefNode
+            (CSUType (CStruct CStructTag (Just $ toIdent tyName) Nothing [] undefNode) undefNode,
+             NoSign)
           (ILUnionRef tyName) ->
-            CSUType (CStruct CUnionTag (Just $ toIdent tyName) Nothing [] undefNode) undefNode
+            (CSUType (CStruct CUnionTag (Just $ toIdent tyName) Nothing [] undefNode) undefNode,
+             NoSign)
           --FIXME Add enumRef
           (ILNewName tyName) ->
-            CTypeDef (toIdent tyName) undefNode
+            (CTypeDef (toIdent tyName) undefNode,
+             NoSign)
 
 
 typeSpecsToType :: [CDeclarationSpecifier a] -> ILType
-typeSpecsToType specs = BaseType sign constness rootType
-  where rootType = getRootSpec specs
+typeSpecsToType specs = BaseType constness rootType
+  where rootType = getRootSpec sign specs
         constness = getConstness specs
         sign = getSignedness specs        
 
 identToTypeName :: Ident -> ILTypeName
 identToTypeName = ILTypeName . identToString
 
-getRootSpec :: [CDeclarationSpecifier a] -> ILBaseType
-getRootSpec [] = error "No type specifier in declaration"
-getRootSpec ((CTypeSpec (CVoidType _)):_) = ILVoid
-getRootSpec ((CTypeSpec (CCharType _)):_) = ILChar
-getRootSpec ((CTypeSpec (CShortType _)):_) = ILShort
-getRootSpec ((CTypeSpec (CIntType _)):_) = ILInt
-getRootSpec ((CTypeSpec (CLongType _)):_) = ILLong
-getRootSpec ((CTypeSpec (CFloatType _)):_) = ILFloat
-getRootSpec ((CTypeSpec (CDoubleType _)):_) = ILDouble
-getRootSpec ((CTypeSpec (CSUType (CStruct CStructTag (Just ident) _ _ _) _)):_) =
+getRootSpec :: TypeSign -> [CDeclarationSpecifier a] -> ILBaseType
+getRootSpec sign [] = error "No type specifier in declaration"
+getRootSpec sign ((CTypeSpec (CVoidType _)):_) = ILVoid
+getRootSpec sign ((CTypeSpec (CCharType _)):_) = ILChar sign
+getRootSpec sign ((CTypeSpec (CShortType _)):_) = ILShort sign
+getRootSpec sign ((CTypeSpec (CIntType _)):_) = ILInt sign
+getRootSpec sign ((CTypeSpec (CLongType _)):_) = ILLong sign
+getRootSpec sign ((CTypeSpec (CFloatType _)):_) = ILFloat sign
+getRootSpec sign ((CTypeSpec (CDoubleType _)):_) = ILDouble sign
+getRootSpec sign ((CTypeSpec (CSUType (CStruct CStructTag (Just ident) _ _ _) _)):_) =
   ILStructRef $ identToTypeName ident
-getRootSpec ((CTypeSpec (CSUType (CStruct CUnionTag (Just ident) _ _ _) _)):_) =
+getRootSpec sign ((CTypeSpec (CSUType (CStruct CUnionTag (Just ident) _ _ _) _)):_) =
   ILUnionRef $ identToTypeName ident
-getRootSpec ((CTypeSpec (CEnumType (CEnum (Just ident) _ _ _) _)):_) =
+getRootSpec sign ((CTypeSpec (CEnumType (CEnum (Just ident) _ _ _) _)):_) =
   ILEnumRef $ identToTypeName ident
-getRootSpec ((CTypeSpec (CTypeDef ident _)):_) =
+getRootSpec sign ((CTypeSpec (CTypeDef ident _)):_) =
   ILNewName $ identToTypeName ident
-getRootSpec (_:xs) = getRootSpec xs
+getRootSpec sign (_:xs) = getRootSpec sign xs
 
 isConstQual :: CTypeQualifier a -> Bool
 isConstQual (CConstQual _) = True

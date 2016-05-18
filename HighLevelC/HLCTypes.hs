@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -56,7 +57,7 @@ newtype TW a = TW {fromTW :: ILType}
 class (Typeable a) => HLCTypeable a where
   hlcType :: TW a
   structDef :: Maybe (TypedStructDef a)
-  hlcType = TW $ BaseType NoSign NotConst
+  hlcType = TW $ BaseType NotConst
     (ILStructRef $ getILType (Proxy :: Proxy a))
 
 getObjType :: forall a. (HLCTypeable a) => a -> ILType
@@ -65,8 +66,9 @@ getObjType _ = fromTW (hlcType :: TW a)
 newtype TypedVar a = TypedVar {fromTypedVar :: HLCSymbol} deriving (Eq,Ord,Show)
 
 instance (HLCTypeable a) => HLCTypeable (TypedExpr a) where
-  hlcType = hlcType
-  structDef = structDef
+  hlcType = TW $ fromTW (hlcType :: TW a)
+  structDef = (structDef :: Maybe (TypedStructDef a)) >>=
+    (return . TypedStructDef . fromTypedStructDef)
 
 data FunctionProto = FunctionProto ILType HLCSymbol [Argument]
                       deriving (Show,Eq,Ord)
@@ -77,7 +79,7 @@ data StructProto = StructProto ILTypeName
 data StructDef = StructDef ILTypeName [StructField]
                deriving (Eq,Ord,Show)
 
-newtype TypedStructDef a = TypedStructDef StructDef
+newtype TypedStructDef a = TypedStructDef {fromTypedStructDef :: StructDef}
 
 data FunctionDef = FunctionDef {functionRetType :: ILType,
                                 functionName :: HLCSymbol,
@@ -104,8 +106,22 @@ data HLCExpr = ExpVar HLCSymbol
              | LitExpr HLCLit
              | AccessPart HLCExpr SafeName
              | SizeOf ILType
+             | ExprBinOp HLCBinOp HLCExpr HLCExpr
+             | HLCCast ILType HLCExpr
              | Void
              deriving (Eq,Ord,Show)
+
+data HLCBinOp = HLCPlus
+              | HLCMinus
+              | HLCTimes
+              | HLCDivide
+              | HLCRem
+              | HLCLAnd
+              | HLCLOr
+              | HLCBitAnd
+              | HLCBitOr
+              | HLCBitXor
+              deriving (Eq,Ord,Show)
 
 data HLCLit = CharLit Char
             | IntLit Integer
@@ -122,6 +138,10 @@ deriving instance (Show a) => Show (HLCPointer a)
 deriving instance (Eq a) => Eq (HLCPointer a)
 deriving instance (Ord a) => Ord (HLCPointer a)
 
+instance (HLCTypeable a) => HLCTypeable (HLCPointer a) where
+  hlcType = TW $ PtrType NotConst $ fromTW (hlcType :: TW a)
+  structDef = Nothing
+
 data TypedLHS a where
   TypedLHSVar :: TypedVar a -> TypedLHS a
   TypedLHSDeref :: TypedLHS (HLCPointer a) -> TypedLHS a
@@ -134,6 +154,16 @@ data ObjectManager = ObjectManager {constructor :: [HLCStatement],
                                     destructor :: [HLCStatement]}
                    deriving (Show,Eq,Ord)
 
+class (Typeable name) => HLCFunction name ty | name -> ty where
+  call :: Proxy name -> ty
+
+--data Foo
+--instance Function Foo (Int -> Int -> String) where
+--  call _ n m = show (n+m)
+
+
+--call2 name a1 a2 = (call name) a1 a2
+
 newtype TypedExpr a = TypedExpr {fromTypedExpr :: HLCExpr}
 
 class (Typeable fieldName) =>
@@ -141,6 +171,12 @@ class (Typeable fieldName) =>
 
 data VarArg = forall a . ConsArg (TypedExpr a) VarArg
             | NilArg
+
+varArgToList :: VarArg -> [HLCExpr]
+varArgToList NilArg = []
+varArgToList (ConsArg typedExpr rest) =
+  fromTypedExpr typedExpr :
+  varArgToList rest
 
 getILType :: forall a. (Typeable a) => Proxy a -> ILTypeName
 getILType _ =

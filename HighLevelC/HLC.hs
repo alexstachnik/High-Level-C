@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -92,7 +93,7 @@ addStructInst inst = modify $ \(CodeState {..}) ->
              ..}
 
 declareFuncInst :: FuncBaseName -> [ILType] -> HLC_ HLCSymbol
-declareFuncInst baseName args = show args `trace` do
+declareFuncInst baseName args = do
   let newName = deriveFuncName baseName args
   symb <- makeHLCSymbol_ newName
   addFuncInst (FunctionInst baseName args) symb
@@ -175,67 +176,88 @@ makeStructDef =
 data Function a = Function a FuncBaseName
                 | ExtFunc HLCSymbol
 
+newtype VarFunction a = VarFunction HLCSymbol
 
+callVarFunc :: (HLCTypeable b) =>
+               VarFunction (HLC (TypedExpr b)) ->
+               VarArg ->
+               HLC (TypedExpr b)
+callVarFunc (VarFunction symb) varArgs =
+  return $ TypedExpr $ FunctionCall (ExpVar symb) $ varArgToList varArgs
 
-call0 :: forall b.
-         (HLCTypeable b) =>
-         Function (HLC (TypedExpr b)) ->
-         HLC (TypedExpr b)
-call0 (Function f baseName) = do
-  mFSymb <- getFunHLCSymbol baseName []
-  funcName <- case mFSymb of
-    Just x -> return x
-    Nothing -> do
-      declareFunction
-        baseName
-        []
-        f
-  return $ TypedExpr $ FunctionCall (ExpVar funcName) []
-call0 (ExtFunc name) = do
-  return $ TypedExpr $ FunctionCall (ExpVar name) []
+makeCallOperator :: Int -> DecsQ
+makeCallOperator n = do
+  let fName = mkName ("call" ++ show n)
+      fTypeArgs = map (\s -> mkName ("a" ++ show s)) [1..n]
+  retTypeArg <- newName "b"
+  let tyVars = map PlainTV (retTypeArg : fTypeArgs)
+      tyConstraints =
+        mapM (\argVar -> appT [t|HLCTypeable|] (varT argVar))
+        (retTypeArg : fTypeArgs)
+      fRetType = appT [t|HLC|] (appT [t|TypedExpr|] $ varT retTypeArg)
+      fArgType = foldr (\arg acc -> appT (appT arrowT arg) acc) fRetType $
+        map (\var -> appT [t|TypedExpr|] (varT var)) fTypeArgs
+      functionArg = appT [t|Function|] fArgType
+  sig <- sigD fName $
+    forallT tyVars tyConstraints (appT (appT arrowT functionArg) fArgType)
+  fCallArg <- newName "f"
+  fBaseName <- newName "baseName"
+  fArgs <- mapM (const $ newName "c") [1..n]
+  fArgSymbols <- mapM (const $ newName "d") [1..n]
+  let normalFunctionClause =
+        [[p|Function $(varP fCallArg) $(varP fBaseName)|]] ++
+        map varP fArgs
+      typeArgs =
+        map (\arg -> appE [e|getObjType|] arg) $
+        map varE fArgs
+      args = listE $ zipWith (\eArg tArg -> appE (appE [e|Argument|] (varE eArg))
+                                            (appE [e|getObjType|] (varE tArg)))
+        fArgSymbols fArgs
+      makeArgSymbols = map (\arg -> bindS (varP arg) $
+                                    appE [e|makeHLCSymbol|] $
+                                    appE [e|makeSafeName|] $
+                                    litE (stringL $ show arg)) fArgSymbols
+      fCall = appsE (varE fCallArg :
+                     map (\arg -> appE [e|TypedExpr|] (appE [e|ExpVar|] (varE arg))) fArgSymbols)
+      makeFunDecl = makeArgSymbols ++
+        [noBindS $ appsE [[e|declareFunction|],varE fBaseName,args,fCall]]
+      normalBody = normalB $ doE
+        [bindS (varP $ mkName "mFSymb") $ appsE [[e|getFunHLCSymbol|],(varE fBaseName),listE typeArgs],
+         bindS (varP $ mkName "funcName") $ caseE (varE $ mkName "mFSymb") [
+            match (conP (mkName "Just") [varP $ mkName "x"]) (normalB $ appE [e|return|] (varE $ mkName "x")) [],
+            match (conP (mkName "Nothing") []) (normalB $ doE makeFunDecl) []],
+         noBindS $ appE [e|return|] $ appE [e|TypedExpr|] $ appE (appE [e|FunctionCall|] (appE [e|ExpVar|] (varE $ mkName "funcName"))) $
+         listE $ map (appE [e|fromTypedExpr|] . varE) fArgs]
+      extFunctionClause = [[p|ExtFunc $(varP fCallArg)|]] ++ map varP fArgs
+      extBody = normalB $ appE [e|return|] $
+        appE [e|TypedExpr|] $
+        appE (appE [e|FunctionCall|] (appE [e|ExpVar|] (varE fCallArg))) $
+        listE $ map (appE [e|fromTypedExpr|] . varE) fArgs
+  fDecl <- funD fName [clause normalFunctionClause normalBody [],
+                       clause extFunctionClause extBody []]
+  return [sig,fDecl]
 
-
-call1 :: forall a1 b.
-         (HLCTypeable a1, HLCTypeable b) =>
-         Function (TypedExpr a1 -> HLC (TypedExpr b)) ->
-         TypedExpr a1 ->
-         HLC (TypedExpr b)
-call1 (Function f baseName) arg1 = do
-  mFSymb <- getFunHLCSymbol baseName [getObjType arg1]
-  funcName <- case mFSymb of
-    Just x -> return x
-    Nothing -> do
-      argVar1 <- makeHLCSymbol $ makeSafeName "arg1"
-      declareFunction
-        baseName
-        [Argument argVar1 (fromTW (hlcType :: TW a1))]
-        (f
-         (TypedExpr $ ExpVar argVar1))
-  return $ TypedExpr $ FunctionCall (ExpVar funcName)
-    [fromTypedExpr arg1]
-
-call2 :: forall a1 a2 b.
-         (HLCTypeable a1, HLCTypeable a2, HLCTypeable b) =>
-         Function (TypedExpr a1 -> TypedExpr a2 -> HLC (TypedExpr b)) ->
-         TypedExpr a1 ->
+call2 :: forall b a1 a2 name.
+         (HLCTypeable a1,
+          HLCTypeable a2,
+          HLCTypeable b,
+          HLCFunction name (TypedExpr a1 ->
+                            TypedExpr a2 ->
+                            HLC (TypedExpr b))) =>
+         Proxy name ->
+         TypedExpr a1->
          TypedExpr a2 ->
          HLC (TypedExpr b)
-call2 (Function f baseName) arg1 arg2 = do
-  mFSymb <- getFunHLCSymbol baseName [getObjType arg1,
-                                      getObjType arg2]
+call2 name a1 a2 = do
+  let baseName = FuncBaseName $ fromSafeName $ getFieldName name
+  mFSymb <- getFunHLCSymbol baseName [getObjType a1,
+                                      getObjType a2]
   funcName <- case mFSymb of
     Just x -> return x
     Nothing -> do
-      argVar1 <- makeHLCSymbol $ makeSafeName "arg1"
-      argVar2 <- makeHLCSymbol $ makeSafeName "arg2"
-      declareFunction
-        baseName
-        [Argument argVar1 (fromTW (hlcType :: TW a1)),
-         Argument argVar2 (fromTW (hlcType :: TW a2))]
-        (f
-         (TypedExpr $ ExpVar argVar1)
-         (TypedExpr $ ExpVar argVar2))
-  return $ TypedExpr $ FunctionCall (ExpVar funcName)
-    [fromTypedExpr arg1,
-     fromTypedExpr arg2]
-
+      d1 <- makeHLCSymbol (makeSafeName "d1")
+      d2 <- makeHLCSymbol (makeSafeName "d2")
+      declareFunction baseName [Argument d1 (getObjType a1),
+                                Argument d2 (getObjType a2)]
+        ((call name) (TypedExpr (ExpVar d1)) (TypedExpr (ExpVar d2)))
+  return (TypedExpr (FunctionCall (ExpVar funcName) [fromTypedExpr a1, fromTypedExpr a2]))
