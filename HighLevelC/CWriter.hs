@@ -27,8 +27,7 @@ data CWriter = CWriter {functionProtos :: Sq.Seq FunctionProto,
                         structDefs :: Sq.Seq StructDef,
                         funcDefs :: Sq.Seq FunctionDef,
                         stmts :: Sq.Seq HLCStatement,
-                        varDecls :: Sq.Seq Variable,
-                        objectManagement :: Sq.Seq ObjectManager}
+                        varDecls :: Sq.Seq Variable}
              deriving (Show)
 
 instance Monoid CWriter where
@@ -37,43 +36,30 @@ instance Monoid CWriter where
                     structDefs = Sq.empty,
                     funcDefs = Sq.empty,
                     stmts = Sq.empty,
-                    varDecls = Sq.empty,
-                    objectManagement = Sq.empty}
+                    varDecls = Sq.empty}
   mappend a b = CWriter {functionProtos = functionProtos a >< functionProtos b,
                          structProtos = structProtos a >< structProtos b,
                          structDefs = structDefs a >< structDefs b,
                          funcDefs = funcDefs a >< funcDefs b,
                          stmts = stmts a >< stmts b,
-                         varDecls = varDecls a >< varDecls b,
-                         objectManagement = objectManagement a >< objectManagement b}
+                         varDecls = varDecls a >< varDecls b}
 
 hideBlock :: CWriter -> CWriter
 hideBlock (CWriter {..}) = CWriter {stmts=Sq.empty,
-                                    objectManagement=Sq.empty,
                                     varDecls = Sq.empty,
                                     ..}
 
-writeFunctionM :: forall m a. (MonadWriter CWriter m, HLCTypeable a) =>
-                  HLCSymbol -> [Argument] -> m (TypedExpr a) -> m (TypedExpr a)
-writeFunctionM name args m = censor hideBlock $ do
-  (result,writer) <- listen m
-  let retType = fromTW (hlcType :: TW a)
-  writeFunc $ FunctionDef {functionRetType = retType,
-                           functionName = name,
-                           functionArguments = args,
-                           functionLocalVars = toList $ varDecls writer,
-                           functionStmts = toList $ stmts writer,
-                           functionObjectManagers = toList $ objectManagement writer}
-  return result
+grabBlock :: (MonadWriter CWriter m) => m a -> m HLCBlock
+grabBlock m = censor hideBlock $ do
+  (_,c) <- listen m
+  return $ HLCBlock (toList $ varDecls c) (toList $ stmts c)
+  
 
 writeVar :: (MonadWriter CWriter m) => Variable ->  m ()
 writeVar var = tell $ mempty {varDecls = Sq.singleton var}
 
 writeStmt :: (MonadWriter CWriter m) => HLCStatement ->  m ()
 writeStmt stmt = tell $ mempty {stmts = Sq.singleton stmt}
-
-writeObjectManager :: (MonadWriter CWriter m) => ObjectManager -> m ()
-writeObjectManager manager = tell $ mempty {objectManagement = Sq.singleton manager}
 
 writeFunc :: (MonadWriter CWriter m) => FunctionDef ->  m ()
 writeFunc func = tell $ mempty {funcDefs = Sq.singleton func}

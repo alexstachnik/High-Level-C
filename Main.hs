@@ -1,8 +1,10 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Main(main) where
 
@@ -34,38 +36,22 @@ main :: IO ()
 main = print 3
 
 
-data MyStruct deriving (Typeable)
+data MyStruct a
+deriving instance Typeable a => Typeable (MyStruct a)
+instance HLCTypeable a => HLCTypeable (MyStruct a) where
+  hlcType = structHLCType
 
 data FieldA deriving (Typeable)
 data FieldB deriving (Typeable)
 
-instance Struct MyStruct FieldA HLCInt
-instance Struct MyStruct FieldB HLCChar
+instance (HLCTypeable a) => StructFieldClass (MyStruct a) FieldA a
+instance (HLCTypeable a) => StructFieldClass (MyStruct a) FieldB HLCChar
+
+instance (HLCTypeable a) => Struct (MyStruct a) where
+  structContents _ = [makeStructField (Proxy :: Proxy FieldA) Nothing,
+                      makeStructField (Proxy :: Proxy FieldB) (Just 5)]
 
 
-
-instance HLCTypeable MyStruct where
-  structDef = Just $ makeStructDef
-    [makeStructField (Proxy :: Proxy FieldA) Nothing,
-     makeStructField (Proxy :: Proxy FieldB) Nothing]
-
-f_p :: Function (TypedExpr HLCInt -> HLC (TypedExpr HLCInt))
-f_p = Function f (FuncBaseName "ff")
-  where f a = do
-          test <- makeVar (makeSafeName "test") :: HLC (TypedVar MyStruct)
-          test2 <- makeVar (makeSafeName "test2") :: HLC (TypedVar HLCInt)
-          test3 <- makeInt "blah"
-          test4 <- call1 f_p (varRef test3)
-          assignVar (TypedLHSVar test2) (makeIntLit 3)
-          return test4
-
-
-
-g = do
-  test <- makeInt "blah"
-  _ <- call1 f_p (varRef test)
-  --_ <- call1 malloc (varRef test)
-  return ()
 
 
 --q :: Function (TypedExpr HLCChar -> (HLC (TypedExpr HLCInt)))

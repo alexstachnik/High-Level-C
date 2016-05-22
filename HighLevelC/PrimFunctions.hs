@@ -5,6 +5,6 @@ import HighLevelC.HLC
 import HighLevelC.HLCTypes
 import HighLevelC.BasicTypes
 
-malloc :: Function (TypedExpr HLCInt -> HLC (TypedExpr (HLCPointer HLCVoid)))
-malloc = ExtFunc $ ExtSymbol "malloc"
+malloc :: ExtFunction (HLCInt -> HLCPtr b HLCVoid)
+malloc = ExtFunction $ ExactSymbol "malloc"
 

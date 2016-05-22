@@ -1,3 +1,5 @@
+{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -22,12 +24,15 @@ import Util.Names
 import IntermediateLang.ILTypes
 
 data Argument = Argument {argumentName :: HLCSymbol,
-                          argumentType :: ILType}
+                          argumentType :: ILType,
+                          argumentArrLen :: Maybe Integer}
               deriving (Eq,Ord,Show)
 
 data Variable = Variable {variableName :: HLCSymbol,
                           variableType :: ILType,
-                          variableArrLen :: Maybe HLCExpr}
+                          variableArrLen :: Maybe HLCExpr,
+                          variableCons :: [HLCStatement],
+                          variableDest :: [HLCStatement]}
               deriving (Eq,Ord,Show)
 
 data StructField = StructField {fieldName :: SafeName,
@@ -37,71 +42,91 @@ data StructField = StructField {fieldName :: SafeName,
 
 newtype TypedStructField a = TypedStructField {fromTypedStructField :: StructField}
 
-newtype FuncBaseName = FuncBaseName {fromFuncBaseName :: String}
+makeStructField :: forall st field ty.
+                   (StructFieldClass st field ty) =>
+                   Proxy field -> Maybe Integer -> TypedStructField st
+makeStructField fname arrLen =
+  TypedStructField $
+  StructField (getFieldName fname) (fromTW (structHLCType :: TW st)) arrLen
+
+newtype FuncName = FuncName {fromFuncName :: SafeName}
                      deriving (Eq,Ord,Show)
 
-newtype StructBaseName = StructBaseName {fromStructBaseName :: String}
+newtype StructName = StructName {fromStructName :: SafeName}
                        deriving (Eq,Ord,Show)
-
-data FunctionInst = FunctionInst FuncBaseName [ILType]
-                  deriving (Eq,Ord,Show)
-
-newtype FuncInstances = FuncInstances {fromFuncInstances :: M.Map FunctionInst HLCSymbol}
-                  deriving (Eq,Ord,Show)
-
-newtype StructInstances = StructInstances {fromStructInstances :: S.Set StructDef}
-                        deriving (Show,Eq,Ord)
 
 newtype TW a = TW {fromTW :: ILType}
 
 class (Typeable a) => HLCTypeable a where
   hlcType :: TW a
-  structDef :: Maybe (TypedStructDef a)
-  hlcType = TW $ BaseType NotConst
-    (ILStructRef $ getILType (Proxy :: Proxy a))
+
+structHLCType :: forall a. (Struct a) => TW a
+structHLCType = TW $ BaseType NotConst
+  (ILStructRef $ getILType (Proxy :: Proxy a))
+
+getILType :: (Struct structType) => Proxy structType -> ILTypeName
+getILType = ILTypeName . fromSafeName . fromStructName . getStructName
 
 getObjType :: forall a. (HLCTypeable a) => a -> ILType
 getObjType _ = fromTW (hlcType :: TW a)
-  
-newtype TypedVar a = TypedVar {fromTypedVar :: HLCSymbol} deriving (Eq,Ord,Show)
+
+newtype TypedExpr a = TypedExpr {fromTypedExpr :: HLCExpr}
 
 instance (HLCTypeable a) => HLCTypeable (TypedExpr a) where
-  hlcType = TW $ fromTW (hlcType :: TW a)
-  structDef = (structDef :: Maybe (TypedStructDef a)) >>=
-    (return . TypedStructDef . fromTypedStructDef)
+  hlcType = TW $ fromTW (hlcType :: (TW a))
+
+newtype TypedVar a = TypedVar {fromTypedVar :: HLCSymbol} deriving (Eq,Ord,Show)
+
+class (Typeable name, HLCTypeable retType) =>
+      HLCFunction name ty retType | name -> ty, name -> retType where
+  call :: Proxy name -> ty
+
+getFuncName :: (Typeable a, HLCFunction a b c) => Proxy a -> FuncName
+getFuncName = FuncName . makeSafeName . show . typeRep
+
+getStructName :: (Struct structType) => Proxy structType -> StructName
+getStructName = StructName . makeSafeName . show . typeRep
+
+class (HLCTypeable structType) => Struct structType where
+  structContents :: Proxy structType -> [TypedStructField structType]
+
+class (Struct structType, Typeable fieldName) =>
+      StructFieldClass structType fieldName fieldType | structType fieldName -> fieldType
+
 
 data FunctionProto = FunctionProto ILType HLCSymbol [Argument]
                       deriving (Show,Eq,Ord)
 
-data StructProto = StructProto ILTypeName
+data StructProto = StructProto HLCSymbol
                  deriving (Show,Eq,Ord)
 
-data StructDef = StructDef ILTypeName [StructField]
+data FunctionDef = FunctionDef {fdefRetType :: ILType,
+                                fdefName :: HLCSymbol,
+                                fdefArguments :: [Argument],
+                                fdefBody :: HLCBlock}
+                 deriving (Show,Eq,Ord)
+
+data StructDef = StructDef HLCSymbol [StructField]
                deriving (Eq,Ord,Show)
 
-newtype TypedStructDef a = TypedStructDef {fromTypedStructDef :: StructDef}
+data HLCBlock = HLCBlock {blockVars :: [Variable],
+                          blockStmts :: [HLCStatement]}
+              deriving (Eq,Ord,Show)
 
-data FunctionDef = FunctionDef {functionRetType :: ILType,
-                                functionName :: HLCSymbol,
-                                functionArguments :: [Argument],
-                                functionLocalVars :: [Variable],
-                                functionStmts :: [HLCStatement],
-                                functionObjectManagers :: [ObjectManager]}
-                 deriving (Show,Eq,Ord)
-
-data HLCStatement = HLCBlock [Variable] [ObjectManager] [HLCStatement]
-                  | HLCExpStmt HLCExpr
-                  | HLCAssignment UntypedLHS HLCExpr
-                  | HLCLabel HLCStatement
+data HLCStatement = BlockStmt HLCBlock
+                  | ExpStmt HLCExpr
+                  | AssignmentStmt UntypedLHS HLCExpr
                   deriving (Eq,Ord,Show)
 
 data UntypedLHS = LHSVar HLCSymbol
+                | LHSPtr HLCExpr
                 | LHSDeref UntypedLHS
-                | LHSDerefPlusOffset UntypedLHS Integer
+                | LHSDerefPlusOffset UntypedLHS HLCExpr
                 | LHSElement UntypedLHS SafeName
+                | LHSAddrOf UntypedLHS
                 deriving (Eq,Ord,Show)
 
-data HLCExpr = ExpVar HLCSymbol
+data HLCExpr = LHSExpr UntypedLHS
              | FunctionCall HLCExpr [HLCExpr]
              | LitExpr HLCLit
              | AccessPart HLCExpr SafeName
@@ -129,48 +154,67 @@ data HLCLit = CharLit Char
             | StrLit String
             deriving (Eq,Ord,Show)
 
-varRef :: TypedVar a -> TypedExpr a
-varRef = TypedExpr . ExpVar . fromTypedVar
+class (HLCTypeable a) => HLCBasicIntType a
+class (HLCTypeable a) => HLCPrimType a
 
-newtype HLCPointer a = HLCPointer a
+instance (Typeable b, HLCPrimType a) => HLCPrimType (HLCPtr b a)
 
-deriving instance (Show a) => Show (HLCPointer a)
-deriving instance (Eq a) => Eq (HLCPointer a)
-deriving instance (Ord a) => Ord (HLCPointer a)
+newtype HLCPtr ptrType a = HLCPtr a deriving (Typeable)
 
-instance (HLCTypeable a) => HLCTypeable (HLCPointer a) where
+data WeakPtr deriving (Typeable)
+data UniquePtr deriving (Typeable)
+
+instance (Typeable b, HLCTypeable a) => HLCTypeable (HLCPtr b a) where
   hlcType = TW $ PtrType NotConst $ fromTW (hlcType :: TW a)
-  structDef = Nothing
+
+data IsPassable
+data NotPassable
+
+type family Passability a where
+  Passability (HLCPtr UniquePtr a) = NotPassable
+  Passability (HLCPtr WeakPtr a) = IsPassable
+  Passability a = IsPassable
+
+type HLCWeakPtr a = HLCPtr WeakPtr a
+type HLCUniquePtr a = HLCPtr UniquePtr a
 
 data TypedLHS a where
   TypedLHSVar :: TypedVar a -> TypedLHS a
-  TypedLHSDeref :: TypedLHS (HLCPointer a) -> TypedLHS a
-  TypedLHSDerefPlusOffset :: TypedLHS (HLCPointer a) -> Integer -> TypedLHS a
+  TypedLHSPtr :: TypedExpr (HLCPtr b a) -> TypedLHS (HLCPtr b a)
+  TypedLHSDeref :: TypedLHS (HLCPtr b a) -> TypedLHS a
+  TypedLHSDerefPlusOffset :: (HLCBasicIntType c) =>
+                             TypedLHS (HLCPtr b a) ->
+                             TypedExpr c ->
+                             TypedLHS a
   TypedLHSElement :: (Typeable fieldName,
-                      Struct structType fieldName fieldType) =>
+                      StructFieldClass structType fieldName fieldType) =>
                      TypedLHS structType -> Proxy fieldName -> TypedLHS fieldType
+  TypedLHSAddrOf :: TypedLHS a -> TypedLHS (HLCPtr WeakPtr a)
 
-data ObjectManager = ObjectManager {constructor :: [HLCStatement],
-                                    destructor :: [HLCStatement]}
-                   deriving (Show,Eq,Ord)
+untypeLHS :: TypedLHS a -> UntypedLHS
+untypeLHS (TypedLHSVar x) = LHSVar (fromTypedVar x)
+untypeLHS (TypedLHSPtr x) = LHSPtr (fromTypedExpr x)
+untypeLHS (TypedLHSDeref ptr) = LHSDeref (untypeLHS ptr)
+untypeLHS (TypedLHSDerefPlusOffset ptr offset) =
+  LHSDerefPlusOffset (untypeLHS ptr) (fromTypedExpr offset)
+untypeLHS (TypedLHSElement struct field) =
+  LHSElement (untypeLHS struct) (getFieldName field)
+untypeLHS (TypedLHSAddrOf x) = LHSAddrOf (untypeLHS x)
 
-class (Typeable name) => HLCFunction name ty | name -> ty where
-  call :: Proxy name -> ty
-
---data Foo
---instance Function Foo (Int -> Int -> String) where
---  call _ n m = show (n+m)
+lhsExpr :: TypedLHS a -> TypedExpr a
+lhsExpr = TypedExpr . LHSExpr . untypeLHS
 
 
---call2 name a1 a2 = (call name) a1 a2
+--f :: (Passability a ~ IsPassable) => a -> Bool
+--f = undefined
+--g = f (undefined :: HLCWeakPtr (HLCUniquePtr Int))
 
-newtype TypedExpr a = TypedExpr {fromTypedExpr :: HLCExpr}
-
-class (Typeable fieldName) =>
-      Struct structType fieldName fieldType | structType fieldName -> fieldType
 
 data VarArg = forall a . ConsArg (TypedExpr a) VarArg
             | NilArg
+
+data ExtFunction a = ExtFunction HLCSymbol
+                   | VarExtFunction HLCSymbol
 
 varArgToList :: VarArg -> [HLCExpr]
 varArgToList NilArg = []
@@ -178,35 +222,17 @@ varArgToList (ConsArg typedExpr rest) =
   fromTypedExpr typedExpr :
   varArgToList rest
 
-getILType :: forall a. (Typeable a) => Proxy a -> ILTypeName
-getILType _ =
-  ILTypeName $ fromSafeName $ makeSafeName $ show $
-  typeRep (Proxy :: Proxy a)
-
 getFieldName :: forall a. (Typeable a) => Proxy a -> SafeName
 getFieldName _ = makeSafeName $ show $ typeRep (Proxy :: Proxy a)
 
-emptyFuncInstances :: FuncInstances
-emptyFuncInstances = FuncInstances M.empty
+readElt :: forall structType fieldName fieldType.
+           (StructFieldClass structType fieldName fieldType, Typeable fieldName) =>
+           TypedExpr structType ->
+           Proxy fieldName ->
+           TypedExpr fieldType
+readElt struct _ =
+  TypedExpr $ AccessPart (fromTypedExpr struct) $
+  getFieldName (Proxy :: Proxy fieldName)
 
-emptyStructInstances :: StructInstances
-emptyStructInstances = StructInstances S.empty
-
-makeFuncBaseName :: String -> FuncBaseName
-makeFuncBaseName = FuncBaseName . fromSafeName . makeSafeName
-
-makeStructBaseName :: String -> StructBaseName
-makeStructBaseName = StructBaseName . fromSafeName . makeSafeName
-
-deriveFuncName :: FuncBaseName -> [ILType] -> SafeName
-deriveFuncName (FuncBaseName baseName) args =
-  joinSafeNames
-  (SafeName baseName :
-   map (makeSafeName . trim . show . pretty . writeDecl "") args)
-
-deriveStructName :: StructBaseName -> [ILType] -> ILTypeName
-deriveStructName (StructBaseName baseName) args =
-  ILTypeName $ fromSafeName $ joinSafeNames
-  (SafeName baseName:
-   map (makeSafeName . trim . show . pretty . writeDecl "") args)
-
+expVar :: HLCSymbol -> HLCExpr
+expVar = LHSExpr . LHSVar

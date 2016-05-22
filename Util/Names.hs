@@ -9,7 +9,7 @@ newtype SafeName = SafeName {fromSafeName :: String}
 
 data HLCSymbol = HLCSymbol {hlcSymbolUID :: Integer,
                             hlcSymbolPrefName :: SafeName}
-               | ExtSymbol {extSymbolName :: String}
+               | ExactSymbol {exactSymbolName :: String}
             deriving (Eq,Ord,Show)
 
 notDoubleUnderscore :: String -> Bool

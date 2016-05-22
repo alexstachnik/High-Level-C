@@ -4,6 +4,8 @@
 
 module HighLevelC.BasicTypes where
 
+import Data.Typeable
+
 import IntermediateLang.ILTypes
 
 import HighLevelC.HLCTypes
@@ -25,59 +27,45 @@ data HLCUInt16
 data HLCUInt32
 data HLCUInt64
 
-class (HLCTypeable a) => HLCBasicIntType a
 
 instance HLCTypeable HLCInt where
   hlcType = TW (BaseType NotConst (ILInt Signed))
-  structDef = Nothing
 
 instance HLCTypeable HLCChar where
   hlcType = TW (BaseType NotConst (ILChar NoSign))
-  structDef = Nothing
 
 instance HLCTypeable HLCDouble where
   hlcType = TW (BaseType NotConst (ILDouble Signed))
-  structDef = Nothing
 
 instance HLCTypeable HLCString where
   hlcType = TW (ArrType (BaseType NotConst (ILChar NoSign)))
-  structDef = Nothing
 
 instance HLCTypeable HLCVoid where
   hlcType = TW (BaseType NotConst ILVoid)
-  structDef = Nothing
 
 instance HLCTypeable HLCInt8 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "int8_t"))
-  structDef = Nothing
 
 instance HLCTypeable HLCInt16 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "int16_t"))
-  structDef = Nothing
 
 instance HLCTypeable HLCInt32 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "int32_t"))
-  structDef = Nothing
 
 instance HLCTypeable HLCInt64 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "int64_t"))
-  structDef = Nothing
 
 instance HLCTypeable HLCUInt8 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "uint8_t"))
-  structDef = Nothing
 
 instance HLCTypeable HLCUInt16 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "uint16_t"))
-  structDef = Nothing
 
 instance HLCTypeable HLCUInt32 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "uint32_t"))
-  structDef = Nothing
 
 instance HLCTypeable HLCUInt64 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "uint64_t"))
-  structDef = Nothing
 
 instance HLCBasicIntType HLCInt
 instance HLCBasicIntType HLCInt8
@@ -94,30 +82,19 @@ instance HLCBasicIntType HLCChar
 fromIntType :: forall a b. (HLCBasicIntType a, HLCBasicIntType b) => TypedExpr a -> TypedExpr b
 fromIntType = TypedExpr . HLCCast (fromTW (hlcType :: TW b)) . fromTypedExpr
 
-makeInt :: String -> HLC (TypedVar HLCInt)
-makeInt = makeVar . makeSafeName
 
-makeChar :: String -> HLC (TypedVar HLCChar)
-makeChar = makeVar . makeSafeName
+instance HLCPrimType HLCInt
+instance HLCPrimType HLCChar
+instance HLCPrimType HLCDouble
+instance HLCPrimType HLCString
+instance HLCPrimType HLCVoid
+instance HLCPrimType HLCInt8
+instance HLCPrimType HLCInt16
+instance HLCPrimType HLCInt32
+instance HLCPrimType HLCInt64
+instance HLCPrimType HLCUInt8
+instance HLCPrimType HLCUInt16
+instance HLCPrimType HLCUInt32
+instance HLCPrimType HLCUInt64
 
-makeDouble :: String -> HLC (TypedVar HLCDouble)
-makeDouble = makeVar . makeSafeName
-
-makeString :: String -> HLC (TypedVar HLCString)
-makeString = makeVar . makeSafeName
-
-makeVoid :: TypedExpr HLCVoid
-makeVoid = TypedExpr Void
-
-makeIntLit :: Integer -> TypedExpr HLCInt
-makeIntLit = TypedExpr . LitExpr . IntLit
-
-makeCharLit :: Char -> TypedExpr HLCChar
-makeCharLit = TypedExpr . LitExpr . CharLit
-
-makeDoubleLit :: Double -> TypedExpr HLCDouble
-makeDoubleLit = TypedExpr . LitExpr . DoubleLit
-
-makeStrLit :: String -> TypedExpr HLCString
-makeStrLit = TypedExpr . LitExpr . StrLit
 
