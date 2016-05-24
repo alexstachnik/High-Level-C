@@ -1,2 +1,3 @@
-TODO
+An alternative to C++.
+
 
