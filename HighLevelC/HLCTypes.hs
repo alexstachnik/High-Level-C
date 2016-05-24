@@ -8,6 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE KindSignatures #-}
 
 module HighLevelC.HLCTypes where
 
@@ -78,10 +79,11 @@ instance (HLCTypeable a) => HLCTypeable (TypedExpr a) where
 newtype TypedVar a = TypedVar {fromTypedVar :: HLCSymbol} deriving (Eq,Ord,Show)
 
 class (Typeable name, HLCTypeable retType) =>
-      HLCFunction name ty retType | name -> ty, name -> retType where
-  call :: Proxy name -> ty
+      HLCFunction name (tyWrap :: * -> *) retType (m :: * -> *) |
+  name -> tyWrap, name -> retType, name -> m where
+  call :: forall r. Proxy name -> (m (TypedExpr retType) -> r) -> tyWrap r
 
-getFuncName :: (Typeable a, HLCFunction a b c) => Proxy a -> FuncName
+getFuncName :: (Typeable a, HLCFunction a b c m) => Proxy a -> FuncName
 getFuncName = FuncName . makeSafeName . show . typeRep
 
 getStructName :: (Struct structType) => Proxy structType -> StructName
@@ -116,6 +118,7 @@ data HLCBlock = HLCBlock {blockVars :: [Variable],
 data HLCStatement = BlockStmt HLCBlock
                   | ExpStmt HLCExpr
                   | AssignmentStmt UntypedLHS HLCExpr
+                  | IfThenElseStmt HLCExpr HLCBlock HLCBlock
                   deriving (Eq,Ord,Show)
 
 data UntypedLHS = LHSVar HLCSymbol
@@ -203,12 +206,6 @@ untypeLHS (TypedLHSAddrOf x) = LHSAddrOf (untypeLHS x)
 
 lhsExpr :: TypedLHS a -> TypedExpr a
 lhsExpr = TypedExpr . LHSExpr . untypeLHS
-
-
---f :: (Passability a ~ IsPassable) => a -> Bool
---f = undefined
---g = f (undefined :: HLCWeakPtr (HLCUniquePtr Int))
-
 
 data VarArg = forall a . ConsArg (TypedExpr a) VarArg
             | NilArg

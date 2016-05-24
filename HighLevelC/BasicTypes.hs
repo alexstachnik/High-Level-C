@@ -26,7 +26,7 @@ data HLCUInt8
 data HLCUInt16
 data HLCUInt32
 data HLCUInt64
-
+data HLCBool
 
 instance HLCTypeable HLCInt where
   hlcType = TW (BaseType NotConst (ILInt Signed))
@@ -67,6 +67,9 @@ instance HLCTypeable HLCUInt32 where
 instance HLCTypeable HLCUInt64 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "uint64_t"))
 
+instance HLCTypeable HLCBool where
+  hlcType = TW (BaseType NotConst (ILChar NoSign))
+
 instance HLCBasicIntType HLCInt
 instance HLCBasicIntType HLCInt8
 instance HLCBasicIntType HLCInt16
@@ -77,6 +80,7 @@ instance HLCBasicIntType HLCUInt16
 instance HLCBasicIntType HLCUInt32
 instance HLCBasicIntType HLCUInt64
 instance HLCBasicIntType HLCChar
+instance HLCBasicIntType HLCBool
 
 
 fromIntType :: forall a b. (HLCBasicIntType a, HLCBasicIntType b) => TypedExpr a -> TypedExpr b
@@ -96,5 +100,6 @@ instance HLCPrimType HLCUInt8
 instance HLCPrimType HLCUInt16
 instance HLCPrimType HLCUInt32
 instance HLCPrimType HLCUInt64
+instance HLCPrimType HLCBool
 
 

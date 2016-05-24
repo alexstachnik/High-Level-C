@@ -89,7 +89,7 @@ addStructInst :: StructName -> HLCSymbol -> HLC_ ()
 addStructInst name symb = modify $ \(CodeState {..}) ->
   CodeState {structInstances = M.insert name symb $ structInstances,..}
 
-makeFuncSymb :: (HLCFunction name ty retType) =>
+makeFuncSymb :: (HLCFunction name ty retType HLC) =>
                 Proxy name -> HLC_ HLCSymbol
 makeFuncSymb name = do
   symb <- makeHLCSymbol_ (fromFuncName $ getFuncName name)
@@ -103,7 +103,7 @@ makeStructSymb name = do
   addStructInst (getStructName name) symb
   return symb
 
-declareFunc :: forall name ty retType. (HLCFunction name ty retType) =>
+declareFunc :: forall name ty retType r. (HLCFunction name ty retType HLC) =>
                Proxy name -> [Argument] -> HLC (TypedExpr retType) -> HLC_ HLCSymbol
 declareFunc proxyName args (HLC func) = do
   symb <- makeFuncSymb proxyName
@@ -122,7 +122,7 @@ declareStruct proxyName = do
   writeStruct $ StructDef symb (map fromTypedStructField $ structContents proxyName)
   return symb
 
-callFunc :: forall name ty retType. (HLCFunction name ty retType) =>
+callFunc :: forall name ty retType r. (HLCFunction name ty retType HLC) =>
             Proxy name -> [(Argument, HLCExpr)] -> HLC (TypedExpr retType) -> HLC (TypedExpr retType)
 callFunc proxyName args f = HLC $ do
   msymb <- lookupFunc name
@@ -131,5 +131,8 @@ callFunc proxyName args f = HLC $ do
     Nothing -> declareFunc proxyName (map fst args) f
   return $ TypedExpr $ FunctionCall (expVar symb) (map snd args)
   where name = getFuncName proxyName
+
+
+  
 
 

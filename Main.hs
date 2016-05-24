@@ -51,6 +51,10 @@ instance (HLCTypeable a) => Struct (MyStruct a) where
   structContents _ = [makeStructField (Proxy :: Proxy FieldA) Nothing,
                       makeStructField (Proxy :: Proxy FieldB) (Just 5)]
 
+data SomeFunc a1
+instance HLCFunction (SomeFunc HLCInt) (ArgWrap1 (TypedExpr HLCInt)) HLCChar HLC where
+  call _ ret = ArgWrap1 (\n -> ret (return (fromIntType n :: TypedExpr HLCChar)))
+
 
 
 
