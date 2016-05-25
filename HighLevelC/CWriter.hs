@@ -22,32 +22,22 @@ import IntermediateLang.ILTypes
 import HighLevelC.HLCTypes
 
 
-data CWriter = CWriter {functionProtos :: Sq.Seq FunctionProto,
-                        structProtos :: Sq.Seq StructProto,
-                        structDefs :: Sq.Seq StructDef,
-                        funcDefs :: Sq.Seq FunctionDef,
-                        stmts :: Sq.Seq HLCStatement,
-                        varDecls :: Sq.Seq Variable}
-             deriving (Show)
+hideStructVarDecls :: CWriter -> CWriter
+hideStructVarDecls (CWriter {..}) = CWriter {structVarDecls = Sq.empty,
+                                             ..}
 
-instance Monoid CWriter where
-  mempty = CWriter {functionProtos = Sq.empty,
-                    structProtos = Sq.empty,
-                    structDefs = Sq.empty,
-                    funcDefs = Sq.empty,
-                    stmts = Sq.empty,
-                    varDecls = Sq.empty}
-  mappend a b = CWriter {functionProtos = functionProtos a >< functionProtos b,
-                         structProtos = structProtos a >< structProtos b,
-                         structDefs = structDefs a >< structDefs b,
-                         funcDefs = funcDefs a >< funcDefs b,
-                         stmts = stmts a >< stmts b,
-                         varDecls = varDecls a >< varDecls b}
+grabStructVars :: (MonadWriter CWriter m) => m a -> m [StructField]
+grabStructVars m = censor hideStructVarDecls $ do
+  (_,c) <- listen m
+  return $ toList $ structVarDecls c
 
 hideBlock :: CWriter -> CWriter
 hideBlock (CWriter {..}) = CWriter {stmts=Sq.empty,
                                     varDecls = Sq.empty,
                                     ..}
+
+grabStructBlock :: (MonadWriter CWriter m) => m a -> m HLCBlock
+grabStructBlock = censor hideStructVarDecls . grabBlock
 
 grabBlock :: (MonadWriter CWriter m) => m a -> m HLCBlock
 grabBlock m = censor hideBlock $ do
@@ -72,3 +62,6 @@ writeStructProto proto = tell $ mempty {structProtos = Sq.singleton proto}
 
 writeFuncProto :: (MonadWriter CWriter m) => FunctionProto ->  m ()
 writeFuncProto proto = tell $ mempty {functionProtos = Sq.singleton proto}
+
+writeStructVarDecl :: (MonadWriter CWriter m) => StructField -> m ()
+writeStructVarDecl field = tell $ mempty {structVarDecls = Sq.singleton field}

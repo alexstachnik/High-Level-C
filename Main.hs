@@ -1,10 +1,13 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main(main) where
 
@@ -38,22 +41,27 @@ main = print 3
 
 data MyStruct a
 deriving instance Typeable a => Typeable (MyStruct a)
-instance HLCTypeable a => HLCTypeable (MyStruct a) where
+instance (HLCTypeable a, Passability a ~ IsPassable) => HLCTypeable (MyStruct a) where
   hlcType = structHLCType
 
 data FieldA deriving (Typeable)
 data FieldB deriving (Typeable)
 
-instance (HLCTypeable a) => StructFieldClass (MyStruct a) FieldA a
-instance (HLCTypeable a) => StructFieldClass (MyStruct a) FieldB HLCChar
+instance (HLCTypeable a,Passability a ~ IsPassable) =>
+         StructFieldClass IsPassable (MyStruct a) FieldA a 1
+instance (HLCTypeable a,Passability a ~ IsPassable) =>
+         StructFieldClass IsPassable (MyStruct a) FieldB HLCChar 1
 
-instance (HLCTypeable a) => Struct (MyStruct a) where
-  structContents _ = [makeStructField (Proxy :: Proxy FieldA) Nothing,
-                      makeStructField (Proxy :: Proxy FieldB) (Just 5)]
+instance (HLCTypeable a,Passability a ~ IsPassable) => Struct IsPassable (MyStruct a) where
+  constructor _ makeStructField = do
+    fieldA <- makeStructField (Proxy :: Proxy FieldA)
+    fieldB <- makeStructField (Proxy :: Proxy FieldB)
+    return ()
+  destructor _ = return ()
 
 data SomeFunc a1
-instance HLCFunction (SomeFunc HLCInt) (ArgWrap1 (TypedExpr HLCInt)) HLCChar HLC where
-  call _ ret = ArgWrap1 (\n -> ret (return (fromIntType n :: TypedExpr HLCChar)))
+instance HLCFunction (SomeFunc HLCInt) (ArgWrap1 (TypedExpr HLCInt)) HLCChar where
+  call _ ret = ArgWrap1 (\n -> (ret (fromIntType n :: TypedExpr HLCChar)))
 
 
 

@@ -8,6 +8,7 @@ module HighLevelC.HLCCalls where
 
 import Data.Typeable
 
+import HighLevelC.CWriter
 import HighLevelC.HLC
 import HighLevelC.HLCTypes
 import Util.Names
@@ -51,12 +52,17 @@ callExt2 (VarExtFunction name) arg1 arg2 varArgs =
 
 newtype ArgWrap0 r = ArgWrap0 {fromArgWrap0 :: r}
 
+returnExpr :: TypedExpr a -> HLC (TypedExpr a)
+returnExpr a = HLC $ do
+  writeStmt $ ReturnStmt (fromTypedExpr a)
+  return a
+  
+
 call0 :: forall name retType.
          (HLCFunction
           name
           ArgWrap0
-          retType
-          HLC,
+          retType,
           HLCTypeable retType) =>
          Proxy name ->
          HLC (TypedExpr retType)
@@ -64,15 +70,14 @@ call0 proxyName = do
   let argFields = []
       untypedArgs = []
   callFunc proxyName (zip argFields untypedArgs)
-    (fromArgWrap0 $ call proxyName id)
+    (fromArgWrap0 $ call proxyName returnExpr)
   
 newtype ArgWrap1 a r = ArgWrap1 {fromArgWrap1 :: a -> r}
 call1 :: forall name a1 retType.
          (HLCFunction
           name
           (ArgWrap1 (TypedExpr a1))
-          retType
-          HLC,
+          retType,
           HLCTypeable a1, HLCTypeable retType,
           Passability a1 ~ IsPassable) =>
          Proxy name ->
@@ -83,15 +88,14 @@ call1 proxyName arg1 = do
   let argFields = [Argument d1 (getObjType arg1) Nothing]
       untypedArgs = [fromTypedExpr arg1]
   callFunc proxyName (zip argFields untypedArgs)
-    ((fromArgWrap1 $ call proxyName id) arg1)
+    ((fromArgWrap1 $ call proxyName returnExpr) arg1)
 
 newtype ArgWrap2 a1 a2 r = ArgWrap2 {fromArgWrap2 :: a1 -> a2 -> r}
 call2 :: forall name a1 a2 retType.
          (HLCFunction
           name
           (ArgWrap2 (TypedExpr a1) (TypedExpr a2))
-          retType
-          HLC,
+          retType,
           HLCTypeable a1, HLCTypeable a2, HLCTypeable retType,
           Passability a1 ~ IsPassable,
           Passability a2 ~ IsPassable) =>
@@ -106,6 +110,6 @@ call2 proxyName arg1 arg2 = do
       untypedArgs = [fromTypedExpr arg1,
                      fromTypedExpr arg2]
   callFunc proxyName (zip argFields untypedArgs)
-    ((fromArgWrap2 $ call proxyName id) arg1 arg2)
+    ((fromArgWrap2 $ call proxyName returnExpr) arg1 arg2)
 
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -15,28 +16,27 @@ import HighLevelC.CWriter
 
 makePrimVar :: forall a. (HLCPrimType a) =>
                SafeName ->
-               (TypedVar a -> [HLCStatement]) ->
-               (TypedVar a -> [HLCStatement]) ->
                HLC (TypedVar a)
-makePrimVar name cons dest = HLC $ do
+makePrimVar name = HLC $ do
   symb <- makeHLCSymbol_ name
   let ty = fromTW (hlcType :: TW a)
-  writeVar $ Variable symb ty Nothing (cons (TypedVar symb)) (dest (TypedVar symb))
+  writeVar $ Variable symb ty Nothing emptyBlock emptyBlock
   return $ TypedVar symb
 
-makeLocalStruct :: forall a. (Struct a) =>
+makeLocalStruct :: forall structType. (Struct IsPassable structType) =>
                    SafeName ->
-                   (TypedVar a -> [HLCStatement]) ->
-                   (TypedVar a -> [HLCStatement]) ->
-                   HLC (TypedVar a)
-makeLocalStruct name cons dest = HLC $ do
+                   HLC (TypedVar structType)
+makeLocalStruct name = HLC $ do
   symb <- makeHLCSymbol_ name
-  msymb <- lookupStruct (getStructName (Proxy :: Proxy a))
+  msymb <- lookupStruct (getStructName (Proxy :: Proxy structType))
   case msymb of
     (Just symb) -> return ()
-    Nothing -> declareStruct (Proxy :: Proxy a) >> return ()
-  let ty = fromTW (hlcType :: TW a)
-  writeVar $ Variable symb ty Nothing (cons (TypedVar symb)) (dest (TypedVar symb))
+    Nothing -> declareStruct (Proxy :: Proxy structType) >> return ()
+  let ty = fromTW (hlcType :: TW structType)
+  cons <- grabStructBlock $ innerHLC $
+    constructor (Proxy :: Proxy structType) (HLC . makeStructField (Proxy :: Proxy structType))
+  dest <- grabStructBlock $ innerHLC $ destructor (Proxy :: Proxy structType)
+  writeVar $ Variable symb ty Nothing cons dest
   return $ TypedVar symb
 
 assignVar :: forall a. (HLCTypeable a, Passability a ~ IsPassable) =>

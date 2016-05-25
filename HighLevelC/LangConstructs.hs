@@ -32,3 +32,19 @@ ifThenElse cond trueBranch falseBranch = HLC $ do
   writeStmt (IfThenElseStmt (fromTypedExpr cond) trueBody falseBody)
   return $ TypedExpr Void
 
+breakStmt :: HLCSymbol -> HLC (TypedExpr b)
+breakStmt symb = HLC $ do
+  writeStmt (GotoStmt symb)
+  return $ TypedExpr Void
+
+whileRest :: TypedExpr HLCBool ->
+             (HLC (TypedExpr b) -> HLC (TypedExpr b)) ->
+             HLC (TypedExpr b) ->
+             HLC (TypedExpr b)
+whileRest cond body rest = HLC $ do
+  breakSymb <- makeHLCSymbol_ $ makeSafeName "whilebreak"
+  body <- grabBlock $ innerHLC $ body (breakStmt breakSymb)
+  rest <- grabBlock $ innerHLC rest
+  writeStmt (WhileStmt (fromTypedExpr cond) body)
+  writeStmt $ BlockStmt rest
+  return $ TypedExpr Void
