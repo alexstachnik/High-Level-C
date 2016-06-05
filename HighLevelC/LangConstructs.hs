@@ -10,41 +10,38 @@ import HighLevelC.CWriter
 import Util.Names
 
 ifThenElseRest :: TypedExpr HLCBool ->
-                  (HLC (TypedExpr b) -> HLC (TypedExpr b)) ->
-                  (HLC (TypedExpr b) -> HLC (TypedExpr b)) ->
-                  HLC (TypedExpr b) ->
-                  HLC (TypedExpr b)
+                  (HLC Context -> HLC Context) ->
+                  (HLC Context -> HLC Context) ->
+                  HLC Context ->
+                  HLC Context
 ifThenElseRest cond trueBranch falseBranch rest = HLC $ do
-  trueBody <- grabBlock $ innerHLC $ trueBranch (return $ TypedExpr Void)
-  falseBody <- grabBlock $ innerHLC $ falseBranch (return $ TypedExpr Void)
-  restBody <- grabBlock $ innerHLC rest
-  writeStmt (IfThenElseStmt (fromTypedExpr cond) trueBody falseBody)
-  writeStmt $ BlockStmt restBody
-  return $ TypedExpr Void
+  contSymb <- makeHLCSymbol_ $ makeSafeName "ifcont"
+  trueBody <- grabBlock $ innerHLC $ trueBranch
+    (return $ SomeContext contSymb)
+  falseBody <- grabBlock $ innerHLC $ falseBranch
+    (return $ SomeContext contSymb)
+  writeStmt (IfThenElseRestStmt (fromTypedExpr cond) contSymb trueBody falseBody)
+  innerHLC rest
 
 ifThenElse :: TypedExpr HLCBool ->
-              HLC (TypedExpr b) ->
-              HLC (TypedExpr b) ->
-              HLC (TypedExpr b)
+              HLC Context ->
+              HLC Context ->
+              HLC Context
 ifThenElse cond trueBranch falseBranch = HLC $ do
   trueBody <- grabBlock $ innerHLC trueBranch
   falseBody <- grabBlock $ innerHLC falseBranch
   writeStmt (IfThenElseStmt (fromTypedExpr cond) trueBody falseBody)
-  return $ TypedExpr Void
-
-breakStmt :: HLCSymbol -> HLC (TypedExpr b)
-breakStmt symb = HLC $ do
-  writeStmt (GotoStmt symb)
-  return $ TypedExpr Void
+  return NextLine
 
 whileRest :: TypedExpr HLCBool ->
-             (HLC (TypedExpr b) -> HLC (TypedExpr b)) ->
-             HLC (TypedExpr b) ->
-             HLC (TypedExpr b)
+             (HLC Context -> HLC Context -> HLC Context) ->
+             HLC Context ->
+             HLC Context
 whileRest cond body rest = HLC $ do
   breakSymb <- makeHLCSymbol_ $ makeSafeName "whilebreak"
-  body <- grabBlock $ innerHLC $ body (breakStmt breakSymb)
-  rest <- grabBlock $ innerHLC rest
-  writeStmt (WhileStmt (fromTypedExpr cond) body)
-  writeStmt $ BlockStmt rest
-  return $ TypedExpr Void
+  contSymb <- makeHLCSymbol_ $ makeSafeName "whilecont"
+  body <- grabBlock $ innerHLC $ body
+    (return $ SomeContext breakSymb)
+    (return $ SomeContext contSymb)
+  writeStmt (WhileStmt (fromTypedExpr cond) breakSymb contSymb body)
+  innerHLC rest

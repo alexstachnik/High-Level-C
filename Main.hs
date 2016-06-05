@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -16,6 +17,8 @@ module Main(main) where
 import Language.C.Data.InputStream
 import Language.C.Data.Ident
 import Language.C.Data.Position
+import Language.C.Data.Node
+import Language.C.Data.Name
 import Language.C.Parser
 import Language.C.Pretty
 import Language.C.Syntax.AST
@@ -33,7 +36,11 @@ import HighLevelC.HLCTypes
 import HighLevelC.CWriter
 import HighLevelC.BasicTypes
 import HighLevelC.PrimFunctions
+import HighLevelC.VarDecls
 import IntermediateLang.ILTypes
+import Printer.Printer
+import Printer.PostProcess
+
 
 main :: IO ()
 main = print 3
@@ -48,25 +55,22 @@ data FieldA deriving (Typeable)
 data FieldB deriving (Typeable)
 
 instance (HLCTypeable a,Passability a ~ IsPassable) =>
-         StructFieldClass IsPassable (MyStruct a) FieldA a 1
+         StructFieldClass IsPassable (MyStruct a) FieldA a
 instance (HLCTypeable a,Passability a ~ IsPassable) =>
-         StructFieldClass IsPassable (MyStruct a) FieldB HLCChar 1
+         StructFieldClass IsPassable (MyStruct a) FieldB HLCChar
 
 instance (HLCTypeable a,Passability a ~ IsPassable) => Struct IsPassable (MyStruct a) where
-  constructor _ makeStructField = do
+  constructor _ makeStructField cxt = do
     fieldA <- makeStructField (Proxy :: Proxy FieldA)
     fieldB <- makeStructField (Proxy :: Proxy FieldB)
-    return ()
-  destructor _ = return ()
+    return cxt
+  destructor _ cxt = return cxt
 
 data SomeFunc a1
 instance HLCFunction (SomeFunc HLCInt) (ArgWrap1 (TypedExpr HLCInt)) HLCChar where
   call _ ret = ArgWrap1 (\n -> (ret (fromIntType n :: TypedExpr HLCChar)))
 
-
-
-
---q :: Function (TypedExpr HLCChar -> (HLC (TypedExpr HLCInt)))
---q = ExtFunc (ExtSymbol "foo")
-
-q = [cExpr|sizeof(int)|]
+x :: HLC ()
+x = do
+  _ <- call1 (Proxy :: Proxy (SomeFunc HLCInt)) undefined
+  return ()

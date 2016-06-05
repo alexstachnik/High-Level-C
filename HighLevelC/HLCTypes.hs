@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ImpredicativeTypes #-}
@@ -22,8 +23,10 @@ import Control.Monad.State
 import Control.Monad.Writer(WriterT,execWriterT,MonadWriter,tell,listen)
 import Control.Monad.Identity(Identity(runIdentity))
 
+import Data.Word
 import Data.List
 import Data.Typeable
+import Data.Data
 import Data.Type.Equality
 import Data.Sequence((><),(|>))
 import qualified Data.Sequence as Sq
@@ -36,21 +39,19 @@ import Util.Names
 import IntermediateLang.ILTypes
 
 data Argument = Argument {argumentName :: HLCSymbol,
-                          argumentType :: ILType,
-                          argumentArrLen :: Maybe Integer}
-              deriving (Eq,Ord,Show)
+                          argumentType :: ILType}
+              deriving (Eq,Ord,Show,Data,Typeable)
 
 data Variable = Variable {variableName :: HLCSymbol,
                           variableType :: ILType,
                           variableArrLen :: Maybe HLCExpr,
                           variableCons :: HLCBlock,
                           variableDest :: HLCBlock}
-              deriving (Eq,Ord,Show)
+              deriving (Eq,Ord,Show,Data,Typeable)
 
 data StructField = StructField {fieldName :: SafeName,
-                                fieldType :: ILType,
-                                fieldArrLen :: Maybe Integer}
-                   deriving (Eq,Ord,Show)
+                                fieldType :: ILType}
+                   deriving (Eq,Ord,Show,Data,Typeable)
 
 data CWriter = CWriter {functionProtos :: Sq.Seq FunctionProto,
                         structProtos :: Sq.Seq StructProto,
@@ -59,7 +60,7 @@ data CWriter = CWriter {functionProtos :: Sq.Seq FunctionProto,
                         stmts :: Sq.Seq HLCStatement,
                         varDecls :: Sq.Seq Variable,
                         structVarDecls :: Sq.Seq StructField}
-             deriving (Show)
+             deriving (Eq,Ord,Show,Data,Typeable)
 
 data CodeState = CodeState {funcInstances :: M.Map FuncName HLCSymbol,
                             structInstances :: M.Map StructName HLCSymbol,
@@ -99,10 +100,10 @@ instance Monoid CWriter where
 
 
 newtype FuncName = FuncName {fromFuncName :: SafeName}
-                     deriving (Eq,Ord,Show)
+                     deriving (Eq,Ord,Show,Data,Typeable)
 
 newtype StructName = StructName {fromStructName :: SafeName}
-                       deriving (Eq,Ord,Show)
+                       deriving (Eq,Ord,Show,Data,Typeable)
 
 newtype TW a = TW {fromTW :: ILType}
 
@@ -114,12 +115,12 @@ newtype TypedExpr a = TypedExpr {fromTypedExpr :: HLCExpr}
 instance (HLCTypeable a) => HLCTypeable (TypedExpr a) where
   hlcType = TW $ fromTW (hlcType :: (TW a))
 
-newtype TypedVar a = TypedVar {fromTypedVar :: HLCSymbol} deriving (Eq,Ord,Show)
+newtype TypedVar a = TypedVar {fromTypedVar :: HLCSymbol} deriving (Eq,Ord,Show,Data,Typeable)
 
 class (Typeable name, HLCTypeable retType) =>
       HLCFunction name (tyWrap :: * -> *) retType |
   name -> tyWrap, name -> retType where
-  call :: forall r. Proxy name -> (TypedExpr retType -> r) -> tyWrap r
+  call :: Proxy name -> (TypedExpr retType -> HLC Context) -> tyWrap (HLC Context)
 
 type family PermissibleStruct struct field where
   PermissibleStruct IsPassable IsPassable = True
@@ -129,56 +130,57 @@ type family PermissibleStruct struct field where
 
 class (HLCTypeable structType) => Struct passable structType | structType -> passable where
   constructor :: Proxy structType ->
-                 (forall fieldName arrLen fieldType.
-                  (KnownNat arrLen,
-                   StructFieldClass passable structType fieldName fieldType arrLen) =>
-                  Proxy fieldName -> HLC (TypedVar fieldType)) ->
-                 HLC ()
-  destructor :: Proxy structType -> HLC ()
-
-type family OkArr arrLenGtOne fieldType where
-  OkArr True (HLCArray a) = True
-  OkArr True b = False
-  OkArr False b = True
+                 (forall fieldName fieldType.
+                  (StructFieldClass passable structType fieldName fieldType) =>
+                  Proxy fieldName -> HLC (TypedLHS fieldType)) ->
+                 Context ->
+                 HLC Context
+  destructor :: Proxy structType -> Context -> HLC Context
 
 class (Struct passable structType,
        Typeable fieldName,
        PermissibleStruct passable (Passability fieldType) ~ True,
-       HLCTypeable fieldType,
-       OkArr (2 <=? arrLen) fieldType ~ True) =>
-      StructFieldClass passable structType fieldName fieldType (arrLen :: Nat) |
-  structType fieldName -> fieldType,
-  structType fieldName -> arrLen
+       HLCTypeable fieldType) =>
+      StructFieldClass passable structType fieldName fieldType |
+  structType fieldName -> fieldType
 
 data FunctionProto = FunctionProto ILType HLCSymbol [Argument]
-                      deriving (Show,Eq,Ord)
+                      deriving (Show,Eq,Ord,Data,Typeable)
 
 data StructProto = StructProto HLCSymbol
-                 deriving (Show,Eq,Ord)
+                 deriving (Show,Eq,Ord,Data,Typeable)
 
 data FunctionDef = FunctionDef {fdefRetType :: ILType,
                                 fdefName :: HLCSymbol,
                                 fdefArguments :: [Argument],
                                 fdefBody :: HLCBlock}
-                 deriving (Show,Eq,Ord)
+                 deriving (Show,Eq,Ord,Data,Typeable)
 
 data StructDef = StructDef HLCSymbol [StructField]
-               deriving (Eq,Ord,Show)
+               deriving (Eq,Ord,Show,Data,Typeable)
+
+newtype StatementList = StatementList [HLCStatement]
+                      deriving (Eq,Ord,Show,Data,Typeable)
 
 data HLCBlock = HLCBlock {blockVars :: [Variable],
-                          blockStmts :: [HLCStatement]}
-              deriving (Eq,Ord,Show)
+                          blockStmts :: StatementList,
+                          blockRetCxt :: Context}
+              deriving (Eq,Ord,Show,Data,Typeable)
 
-emptyBlock = HLCBlock [] []
+emptyBlock = HLCBlock [] (StatementList []) NextLine
+
+data Context = NullContext HLCExpr
+             | SomeContext HLCSymbol
+             | NextLine
+             deriving (Eq,Ord,Show,Data,Typeable)
 
 data HLCStatement = BlockStmt HLCBlock
                   | ExpStmt HLCExpr
                   | AssignmentStmt UntypedLHS HLCExpr
+                  | IfThenElseRestStmt HLCExpr HLCSymbol HLCBlock HLCBlock
                   | IfThenElseStmt HLCExpr HLCBlock HLCBlock
-                  | WhileStmt HLCExpr HLCBlock
-                  | GotoStmt HLCSymbol
-                  | ReturnStmt HLCExpr
-                  deriving (Eq,Ord,Show)
+                  | WhileStmt HLCExpr HLCSymbol HLCSymbol HLCBlock
+                  deriving (Eq,Ord,Show,Data,Typeable)
 
 data UntypedLHS = LHSVar HLCSymbol
                 | LHSPtr HLCExpr
@@ -186,8 +188,7 @@ data UntypedLHS = LHSVar HLCSymbol
                 | LHSDerefPlusOffset UntypedLHS HLCExpr
                 | LHSElement UntypedLHS SafeName
                 | LHSAddrOf UntypedLHS
-                | LHSArrAt UntypedLHS HLCExpr
-                deriving (Eq,Ord,Show)
+                deriving (Eq,Ord,Show,Data,Typeable)
 
 data HLCExpr = LHSExpr UntypedLHS
              | FunctionCall HLCExpr [HLCExpr]
@@ -197,7 +198,7 @@ data HLCExpr = LHSExpr UntypedLHS
              | ExprBinOp HLCBinOp HLCExpr HLCExpr
              | HLCCast ILType HLCExpr
              | Void
-             deriving (Eq,Ord,Show)
+             deriving (Eq,Ord,Show,Data,Typeable)
 
 data HLCBinOp = HLCPlus
               | HLCMinus
@@ -209,16 +210,17 @@ data HLCBinOp = HLCPlus
               | HLCBitAnd
               | HLCBitOr
               | HLCBitXor
-              deriving (Eq,Ord,Show)
+              deriving (Eq,Ord,Show,Data,Typeable)
 
-data HLCLit = CharLit Char
+data HLCLit = CharLit Word8
             | IntLit Integer
             | DoubleLit Double
             | StrLit String
-            deriving (Eq,Ord,Show)
+            deriving (Eq,Ord,Show,Data,Typeable)
 
 class (HLCTypeable a) => HLCBasicIntType a
 class (HLCTypeable a) => HLCPrimType a
+class (HLCTypeable a) => HLCNumType a
 
 instance (Typeable b, HLCPrimType a) => HLCPrimType (HLCPtr b a)
 
@@ -244,10 +246,12 @@ type HLCWeakPtr a = HLCPtr WeakPtr a
 type HLCSmartPtr a = HLCPtr SmartPtr a
 type HLCUniquePtr a = HLCPtr UniquePtr a
 
-newtype HLCArray a = HLCArray a deriving (Typeable)
+newtype HLCArray a (arrLen :: Nat) = HLCArray a deriving (Typeable)
 
-instance HLCTypeable a => HLCTypeable (HLCArray a) where
-  hlcType = TW $ ArrType $ fromTW (hlcType :: TW a)
+instance (HLCTypeable a, KnownNat arrLen, Typeable arrLen) => HLCTypeable (HLCArray a arrLen) where
+  hlcType = case natVal (Proxy :: Proxy arrLen) of
+    0 -> TW $ ArrType (fromTW (hlcType :: TW a)) Nothing
+    n -> TW $ ArrType (fromTW (hlcType :: TW a)) (Just n)
 
 data TypedLHS a where
   TypedLHSVar :: TypedVar a -> TypedLHS a
@@ -258,10 +262,10 @@ data TypedLHS a where
                              TypedExpr c ->
                              TypedLHS a
   TypedLHSElement :: (Typeable fieldName,
-                      StructFieldClass p structType fieldName fieldType arrLen) =>
+                      StructFieldClass p structType fieldName fieldType) =>
                      TypedLHS structType -> Proxy fieldName -> TypedLHS fieldType
   TypedLHSArrAt :: (HLCBasicIntType c) =>
-                   TypedLHS (HLCArray a) ->
+                   TypedLHS (HLCArray a arrLen) ->
                    TypedExpr c ->
                    TypedLHS a
   TypedLHSAddrOf :: TypedLHS a -> TypedLHS (HLCPtr WeakPtr a)
@@ -281,7 +285,7 @@ untypeLHS (TypedLHSDerefPlusOffset ptr offset) =
 untypeLHS (TypedLHSElement struct field) =
   LHSElement (untypeLHS struct) (getFieldName field)
 untypeLHS (TypedLHSArrAt arr ix) =
-  LHSArrAt (untypeLHS arr) (fromTypedExpr ix)
+  LHSDerefPlusOffset (untypeLHS arr) (fromTypedExpr ix)
 untypeLHS (TypedLHSAddrOf x) = LHSAddrOf (untypeLHS x)
 
 
@@ -297,8 +301,8 @@ varArgToList (ConsArg typedExpr rest) =
 getFieldName :: forall a. (Typeable a) => Proxy a -> SafeName
 getFieldName _ = makeSafeName $ show $ typeRep (Proxy :: Proxy a)
 
-readElt :: forall structType fieldName fieldType p arrLen.
-           (StructFieldClass p structType fieldName fieldType arrLen, Typeable fieldName) =>
+readElt :: forall structType fieldName fieldType p.
+           (StructFieldClass p structType fieldName fieldType, Typeable fieldName) =>
            TypedExpr structType ->
            Proxy fieldName ->
            TypedExpr fieldType

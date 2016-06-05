@@ -78,7 +78,7 @@ addStructInst name symb = modify $ \(CodeState {..}) ->
 makeFuncSymb :: (HLCFunction name ty retType) =>
                 Proxy name -> HLC_ HLCSymbol
 makeFuncSymb name = do
-  symb <- makeHLCSymbol_ (fromFuncName $ getFuncName name)
+  let symb = ExactSymbol $ fromSafeName $ fromFuncName $ getFuncName name
   addFuncInst (getFuncName name) symb
   return symb
 
@@ -89,9 +89,9 @@ makeStructSymb name = do
   addStructInst (getStructName name) symb
   return symb
 
-declareFunc :: forall name ty retType r. (HLCFunction name ty retType) =>
-               Proxy name -> [Argument] -> HLC (TypedExpr retType) -> HLC_ HLCSymbol
-declareFunc proxyName args (HLC func) = do
+declareFunc' :: forall name ty retType r. (HLCFunction name ty retType) =>
+                Proxy name -> [Argument] -> HLC Context -> HLC_ HLCSymbol
+declareFunc' proxyName args (HLC func) = do
   symb <- makeFuncSymb proxyName
   let retType = fromTW (hlcType :: TW retType)
   block <- grabBlock func
@@ -100,34 +100,46 @@ declareFunc proxyName args (HLC func) = do
   return symb
     where name = getFuncName proxyName
 
-makeStructField :: forall p structType fieldName fieldType arrLen.
-                   (KnownNat arrLen,
-                    StructFieldClass p structType fieldName fieldType arrLen) =>
-                   Proxy structType -> Proxy fieldName -> HLC_ (TypedVar fieldType)
+makeStructField :: forall p structType fieldName fieldType.
+                   (StructFieldClass p structType fieldName fieldType) =>
+                   Proxy structType -> Proxy fieldName -> HLC_ (TypedLHS fieldType)
 makeStructField structName fieldName = do
-  let arrLen = case natVal (Proxy :: Proxy arrLen) of
-        1 -> Nothing
-        n -> Just n
   writeStructVarDecl $
-    StructField (getFieldName fieldName) (fromTW (hlcType :: TW fieldType)) arrLen
-  return $ TypedVar $ ExactSymbol $ fromSafeName $ getFieldName fieldName
+    StructField (getFieldName fieldName) (fromTW (hlcType :: TW fieldType))
+  return $ TypedLHSVar $ TypedVar $ ExactSymbol $ fromSafeName $ getFieldName fieldName
 
-declareStruct :: forall p structType. (Struct p structType) =>
-                 Proxy structType -> HLC_ HLCSymbol
-declareStruct proxyName = do
+declareStruct' :: forall p structType. (Struct p structType) =>
+                  Proxy structType -> HLC_ HLCSymbol
+declareStruct' proxyName = do
   symb <- makeStructSymb proxyName
   writeStructProto $ StructProto symb
   fields <- grabStructVars $ innerHLC $
-    constructor (Proxy :: Proxy structType) (HLC . makeStructField (Proxy :: Proxy structType))
+    constructor
+    (Proxy :: Proxy structType)
+    (HLC . makeStructField (Proxy :: Proxy structType))
+    (NullContext Void)
   writeStruct $ StructDef symb fields
   return symb
 
-callFunc :: forall name ty retType. (HLCFunction name ty retType) =>
-            Proxy name -> [(Argument, HLCExpr)] -> HLC (TypedExpr retType) -> HLC (TypedExpr retType)
-callFunc proxyName args f = HLC $ do
-  msymb <- lookupFunc name
-  symb <- case msymb of
+declareStruct :: forall p structType. (Struct p structType) =>
+                  Proxy structType -> HLC HLCSymbol
+declareStruct proxyName = HLC $ do
+  msymb <- lookupStruct (getStructName (Proxy :: Proxy structType))
+  case msymb of
     (Just symb) -> return symb
-    Nothing -> declareFunc proxyName (map fst args) f
+    Nothing -> declareStruct' (Proxy :: Proxy structType)
+
+declareFunc :: forall name ty retType r. (HLCFunction name ty retType) =>
+               Proxy name -> [Argument] -> HLC Context -> HLC HLCSymbol
+declareFunc proxyName args f = HLC $ do
+  msymb <- lookupFunc (getFuncName proxyName)
+  case msymb of
+    (Just symb) -> return symb
+    Nothing -> declareFunc' proxyName args f
+
+callFunc :: forall name ty retType. (HLCFunction name ty retType) =>
+            Proxy name -> [(Argument, HLCExpr)] -> HLC Context -> HLC (TypedExpr retType)
+callFunc proxyName args f = do
+  symb <- declareFunc proxyName (map fst args) f
   return $ TypedExpr $ FunctionCall (expVar symb) (map snd args)
   where name = getFuncName proxyName

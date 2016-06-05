@@ -23,21 +23,27 @@ makePrimVar name = HLC $ do
   writeVar $ Variable symb ty Nothing emptyBlock emptyBlock
   return $ TypedVar symb
 
-makeLocalStruct :: forall structType. (Struct IsPassable structType) =>
+makeLocalStruct :: forall structType p. (Struct p structType) =>
                    SafeName ->
                    HLC (TypedVar structType)
 makeLocalStruct name = HLC $ do
   symb <- makeHLCSymbol_ name
-  msymb <- lookupStruct (getStructName (Proxy :: Proxy structType))
-  case msymb of
-    (Just symb) -> return ()
-    Nothing -> declareStruct (Proxy :: Proxy structType) >> return ()
+  consCont <- makeHLCSymbol_ $ makeSafeName "conscont"
+  destCont <- makeHLCSymbol_ $ makeSafeName "destcont"
+  innerHLC $ declareStruct (Proxy :: Proxy structType)
   let ty = fromTW (hlcType :: TW structType)
+      this = TypedVar symb
   cons <- grabStructBlock $ innerHLC $
-    constructor (Proxy :: Proxy structType) (HLC . makeStructField (Proxy :: Proxy structType))
-  dest <- grabStructBlock $ innerHLC $ destructor (Proxy :: Proxy structType)
+    constructor
+    (Proxy :: Proxy structType)
+    (\fieldName -> return $ TypedLHSElement (TypedLHSVar this) fieldName)
+    (SomeContext consCont)
+  dest <- grabStructBlock $ innerHLC $
+    destructor
+    (Proxy :: Proxy structType)
+    (SomeContext destCont)
   writeVar $ Variable symb ty Nothing cons dest
-  return $ TypedVar symb
+  return this
 
 assignVar :: forall a. (HLCTypeable a, Passability a ~ IsPassable) =>
              TypedLHS a ->

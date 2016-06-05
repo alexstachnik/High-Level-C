@@ -11,6 +11,8 @@ import IntermediateLang.ILTypes
 import HighLevelC.HLCTypes
 import HighLevelC.HLC
 
+import Data.Word
+
 import Util.Names
 
 data HLCInt
@@ -38,7 +40,7 @@ instance HLCTypeable HLCDouble where
   hlcType = TW (BaseType NotConst (ILDouble Signed))
 
 instance HLCTypeable HLCString where
-  hlcType = TW (ArrType (BaseType NotConst (ILChar NoSign)))
+  hlcType = TW (PtrType NotConst (BaseType NotConst (ILChar NoSign)))
 
 instance HLCTypeable HLCVoid where
   hlcType = TW (BaseType NotConst ILVoid)
@@ -102,4 +104,22 @@ instance HLCPrimType HLCUInt32
 instance HLCPrimType HLCUInt64
 instance HLCPrimType HLCBool
 
+instance HLCNumType HLCInt
+instance HLCNumType HLCChar
+instance HLCNumType HLCDouble
+instance HLCNumType HLCInt8
+instance HLCNumType HLCInt16
+instance HLCNumType HLCInt32
+instance HLCNumType HLCInt64
+instance HLCNumType HLCUInt8
+instance HLCNumType HLCUInt16
+instance HLCNumType HLCUInt32
+instance HLCNumType HLCUInt64
+instance HLCNumType HLCBool
+
+charLit :: Word8 -> TypedExpr HLCChar
+charLit = TypedExpr . LitExpr . CharLit
+
+intLit :: Integer -> TypedExpr HLCInt
+intLit = TypedExpr . LitExpr . IntLit
 

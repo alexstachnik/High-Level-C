@@ -52,12 +52,6 @@ callExt2 (VarExtFunction name) arg1 arg2 varArgs =
 
 newtype ArgWrap0 r = ArgWrap0 {fromArgWrap0 :: r}
 
-returnExpr :: TypedExpr a -> HLC (TypedExpr a)
-returnExpr a = HLC $ do
-  writeStmt $ ReturnStmt (fromTypedExpr a)
-  return a
-  
-
 call0 :: forall name retType.
          (HLCFunction
           name
@@ -70,7 +64,7 @@ call0 proxyName = do
   let argFields = []
       untypedArgs = []
   callFunc proxyName (zip argFields untypedArgs)
-    (fromArgWrap0 $ call proxyName returnExpr)
+    (fromArgWrap0 $ call proxyName (return . NullContext . fromTypedExpr))
   
 newtype ArgWrap1 a r = ArgWrap1 {fromArgWrap1 :: a -> r}
 call1 :: forall name a1 retType.
@@ -85,10 +79,11 @@ call1 :: forall name a1 retType.
          HLC (TypedExpr retType)
 call1 proxyName arg1 = do
   [d1] <- mapM (makeHLCSymbol . makeSafeName) ["d1"]
-  let argFields = [Argument d1 (getObjType arg1) Nothing]
+  let argFields = [Argument d1 (getObjType arg1)]
       untypedArgs = [fromTypedExpr arg1]
   callFunc proxyName (zip argFields untypedArgs)
-    ((fromArgWrap1 $ call proxyName returnExpr) arg1)
+    ((fromArgWrap1 $ call proxyName (return . NullContext . fromTypedExpr))
+     (TypedExpr $ LHSExpr $ LHSVar d1))
 
 newtype ArgWrap2 a1 a2 r = ArgWrap2 {fromArgWrap2 :: a1 -> a2 -> r}
 call2 :: forall name a1 a2 retType.
@@ -105,11 +100,12 @@ call2 :: forall name a1 a2 retType.
          HLC (TypedExpr retType)
 call2 proxyName arg1 arg2 = do
   [d1,d2] <- mapM (makeHLCSymbol . makeSafeName) ["d1","d2"]
-  let argFields = [Argument d1 (getObjType arg1) Nothing,
-                   Argument d2 (getObjType arg2) Nothing]
+  let argFields = [Argument d1 (getObjType arg1),
+                   Argument d2 (getObjType arg2)]
       untypedArgs = [fromTypedExpr arg1,
                      fromTypedExpr arg2]
   callFunc proxyName (zip argFields untypedArgs)
-    ((fromArgWrap2 $ call proxyName returnExpr) arg1 arg2)
-
+    ((fromArgWrap2 $ call proxyName (return . NullContext . fromTypedExpr))
+     (TypedExpr $ LHSExpr $ LHSVar d1)
+     (TypedExpr $ LHSExpr $ LHSVar d2))
 

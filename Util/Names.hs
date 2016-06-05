@@ -1,16 +1,20 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Util.Names where
+
+import Language.C.Data.Ident
 
 import qualified Data.Map as M
 import Data.List
 import Data.Char
+import Data.Data
 
 newtype SafeName = SafeName {fromSafeName :: String}
-                 deriving (Eq,Ord,Show)
+                 deriving (Eq,Ord,Show,Data,Typeable)
 
 data HLCSymbol = HLCSymbol {hlcSymbolUID :: Integer,
                             hlcSymbolPrefName :: SafeName}
                | ExactSymbol {exactSymbolName :: String}
-            deriving (Eq,Ord,Show)
+            deriving (Eq,Ord,Show,Data,Typeable)
 
 notDoubleUnderscore :: String -> Bool
 notDoubleUnderscore = not . isPrefixOf "__"
@@ -35,3 +39,10 @@ trim str = reverse $ dropWhile isSpace $ reverse $ dropWhile isSpace str
 
 joinSafeNames :: [SafeName] -> SafeName
 joinSafeNames = SafeName . intercalate "__"  . map fromSafeName
+
+extractExactSymbol :: HLCSymbol -> Ident
+extractExactSymbol (ExactSymbol str) = internalIdent str
+extractExactSymbol _ = error "Not an exact symbol"
+
+safeNameToIdent :: SafeName -> Ident
+safeNameToIdent = internalIdent . fromSafeName

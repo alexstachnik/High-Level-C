@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module IntermediateLang.ILTypes where
 
@@ -6,6 +7,8 @@ import Language.C.Syntax.AST(CStatement,
                              CStatement(CCompound),
                              CDecl,
                              CDeclr,
+                             CFunctionDef(CFunDef),
+                             CFunDef,
                              CDeclaration(CDecl),
                              CDeclarator(CDeclr),
                              CDerivedDeclarator(CPtrDeclr,
@@ -36,6 +39,9 @@ import Language.C.Data.Node
 import Language.C.Data.Position
 import Language.C.Pretty
 
+import Data.Data
+import Data.Typeable
+
 data ILBaseType = ILVoid
                 | ILChar TypeSign
                 | ILShort TypeSign
@@ -48,23 +54,23 @@ data ILBaseType = ILVoid
                 | ILUnionRef ILTypeName
                 | ILEnumRef ILTypeName
                 | ILNewName ILTypeName
-                deriving (Eq,Ord,Show)
+                deriving (Eq,Ord,Show,Data,Typeable)
 
 data TypeSign = Signed | Unsigned | NoSign
-              deriving (Eq,Ord,Show)
+              deriving (Eq,Ord,Show,Data,Typeable)
 
 data Constness = Const | NotConst
-               deriving (Eq,Ord,Show)
+               deriving (Eq,Ord,Show,Data,Typeable)
 
 newtype ILTypeName = ILTypeName
                      {fromILTypeName :: String}
-                   deriving (Eq,Ord,Show)
+                   deriving (Eq,Ord,Show,Data,Typeable)
 
 data ILType = FuncType ILType [ILType]
             | BaseType Constness ILBaseType
             | PtrType Constness ILType
-            | ArrType ILType 
-            deriving (Eq,Ord,Show)
+            | ArrType ILType (Maybe Integer)
+            deriving (Eq,Ord,Show,Data,Typeable)
 
 makeDeclrList name =
   let nameDeclr = internalIdent name
@@ -78,28 +84,6 @@ addSpecToDeclr :: CDeclaration NodeInfo ->
 addSpecToDeclr (CDecl ty [(Just (CDeclr ident declrs _ _ _),_,_)] info) newDeclr =
   let declr = CDeclr ident (newDeclr : declrs) Nothing [] undefNode in
   CDecl ty [(Just declr,Nothing,Nothing)] undefNode
-
-writeFuncDecl :: String -> ILType -> [(String,ILType)] -> CDeclaration NodeInfo
-writeFuncDecl fname retType args =
-  let argDeclrs = map (uncurry writeDecl) args in
-  addSpecToDeclr (writeDecl fname retType) $
-  CFunDeclr (Right (argDeclrs,False)) [] undefNode
-
-writeDecl :: String -> ILType -> CDeclaration NodeInfo
-writeDecl name (BaseType constness ty) =
-  CDecl (typeToTypeSpecs constness ty) (makeDeclrList name) undefNode
-writeDecl name (PtrType constness ty) =
-  let constQual = case constness of
-        Const -> [CConstQual undefNode]
-        NotConst -> []
-  in
-  addSpecToDeclr (writeDecl name ty) (CPtrDeclr constQual undefNode)
-writeDecl name (ArrType ty) =
-  addSpecToDeclr (writeDecl name ty) (CArrDeclr [] (CNoArrSize False) undefNode)
-writeDecl name (FuncType retType argTypes) =
-  let argDeclrs = map (writeDecl "") argTypes in
-  addSpecToDeclr (writeDecl name retType) $
-  CFunDeclr (Right (argDeclrs,False)) [] undefNode
 
 getDeclFromStmt :: CStatement a -> CDeclaration a
 getDeclFromStmt (CCompound _ [CBlockDecl decl] _) = decl
@@ -122,7 +106,7 @@ procDeclr (CArrDeclr opts _ _) t =
   let eltType  = case filter isConstQual opts of
         (_:_) -> makeConst t
         [] -> t in
-  ArrType t
+  ArrType t Nothing
 procDeclr (CFunDeclr (Right (args,_)) _ _) t =
   FuncType t (map readType args)
 

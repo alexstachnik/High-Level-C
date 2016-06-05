@@ -36,13 +36,13 @@ hideBlock (CWriter {..}) = CWriter {stmts=Sq.empty,
                                     varDecls = Sq.empty,
                                     ..}
 
-grabStructBlock :: (MonadWriter CWriter m) => m a -> m HLCBlock
+grabStructBlock :: (MonadWriter CWriter m) => m Context -> m HLCBlock
 grabStructBlock = censor hideStructVarDecls . grabBlock
 
-grabBlock :: (MonadWriter CWriter m) => m a -> m HLCBlock
+grabBlock :: (MonadWriter CWriter m) => m Context -> m HLCBlock
 grabBlock m = censor hideBlock $ do
-  (_,c) <- listen m
-  return $ HLCBlock (toList $ varDecls c) (toList $ stmts c)
+  (cont,body) <- listen m
+  return $ HLCBlock (toList $ varDecls body) (StatementList $ toList $ stmts body) cont
   
 
 writeVar :: (MonadWriter CWriter m) => Variable ->  m ()
