@@ -41,6 +41,8 @@ import IntermediateLang.ILTypes
 import Printer.Printer
 import Printer.PostProcess
 
+import Language.Haskell.TH
+import Language.Haskell.TH as TH
 
 main :: IO ()
 main = print 3
@@ -59,12 +61,34 @@ instance (HLCTypeable a,Passability a ~ IsPassable) =>
 instance (HLCTypeable a,Passability a ~ IsPassable) =>
          StructFieldClass IsPassable (MyStruct a) FieldB HLCChar
 
+appsT :: [TypeQ] -> TypeQ
+appsT [x] = x
+appsT (x:y:xs) = appsT ((appT x y) : xs)
+
+makePassableStruct :: Int -> TH.Name -> TH.Name -> Q Dec
+makePassableStruct numParams consName destName = do
+  vars <- mapM newName (replicate numParams "a")
+  let typeableConstraint = map (\v -> appT [t|HLCTypeable|] (varT v)) vars
+      passableConstraint = map
+        (\v -> appT (appT equalityT (appT [t|Passability|] (varT v))) [t|IsPassable|])
+        vars
+      constraints = sequence (typeableConstraint ++ passableConstraint)
+      classTy = appsT [[t|Struct|],[t|IsPassable|],appsT ([t|MyStruct|]:map varT vars)]
+  makeStructField <- newName "makeStructField"
+  cxt <- newName "cxt"
+  let cons = funD (mkName "constructor")
+       [clause [] (normalB $ varE consName) []]
+      dest = funD (mkName "destructor")
+        [clause [] (normalB $ varE destName) []]
+  instanceD constraints classTy [cons,dest]
+
 instance (HLCTypeable a,Passability a ~ IsPassable) => Struct IsPassable (MyStruct a) where
   constructor _ makeStructField cxt = do
     fieldA <- makeStructField (Proxy :: Proxy FieldA)
     fieldB <- makeStructField (Proxy :: Proxy FieldB)
     return cxt
   destructor _ cxt = return cxt
+
 
 data SomeFunc a1
 instance HLCFunction (SomeFunc HLCInt) (ArgWrap1 (TypedExpr HLCInt)) HLCChar where
