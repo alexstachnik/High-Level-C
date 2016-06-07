@@ -61,26 +61,6 @@ instance (HLCTypeable a,Passability a ~ IsPassable) =>
 instance (HLCTypeable a,Passability a ~ IsPassable) =>
          StructFieldClass IsPassable (MyStruct a) FieldB HLCChar
 
-appsT :: [TypeQ] -> TypeQ
-appsT [x] = x
-appsT (x:y:xs) = appsT ((appT x y) : xs)
-
-makePassableStruct :: Int -> TH.Name -> TH.Name -> Q Dec
-makePassableStruct numParams consName destName = do
-  vars <- mapM newName (replicate numParams "a")
-  let typeableConstraint = map (\v -> appT [t|HLCTypeable|] (varT v)) vars
-      passableConstraint = map
-        (\v -> appT (appT equalityT (appT [t|Passability|] (varT v))) [t|IsPassable|])
-        vars
-      constraints = sequence (typeableConstraint ++ passableConstraint)
-      classTy = appsT [[t|Struct|],[t|IsPassable|],appsT ([t|MyStruct|]:map varT vars)]
-  makeStructField <- newName "makeStructField"
-  cxt <- newName "cxt"
-  let cons = funD (mkName "constructor")
-       [clause [] (normalB $ varE consName) []]
-      dest = funD (mkName "destructor")
-        [clause [] (normalB $ varE destName) []]
-  instanceD constraints classTy [cons,dest]
 
 instance (HLCTypeable a,Passability a ~ IsPassable) => Struct IsPassable (MyStruct a) where
   constructor _ makeStructField cxt = do
@@ -91,7 +71,7 @@ instance (HLCTypeable a,Passability a ~ IsPassable) => Struct IsPassable (MyStru
 
 
 data SomeFunc a1
-instance HLCFunction (SomeFunc HLCInt) (ArgWrap1 (TypedExpr HLCInt)) HLCChar where
+instance (HLCTypeable a1,HLCBasicIntType a1) => HLCFunction (SomeFunc a1) (ArgWrap1 (TypedExpr a1)) HLCChar where
   call _ ret = ArgWrap1 (\n -> (ret (fromIntType n :: TypedExpr HLCChar)))
 
 x :: HLC ()

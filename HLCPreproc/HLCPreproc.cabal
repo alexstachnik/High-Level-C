@@ -1,0 +1,18 @@
+name:                HLCPreproc
+version:             0.1.0.0
+synopsis:            Linbox
+-- description:         
+homepage:            https://github.com/alexstachnik/High-Level-C
+license:             GPL-2
+license-file:        LICENSE
+author:              Linbox Team
+-- maintainer:          
+-- copyright:           
+category:            Language
+build-type:          Simple
+cabal-version:       >=1.8
+
+executable High-Level-C
+  main-is:             Main.hs
+  -- other-modules:       
+  build-depends:       base ==4.8.*, containers >= 0.5 && < 0.6, parsec >= 3.1 && < 3.2, pretty >= 1.1 && < 1.2
