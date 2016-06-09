@@ -9,6 +9,7 @@
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 
 module Main(main) where
 
@@ -76,5 +77,5 @@ instance (HLCTypeable a1,HLCBasicIntType a1) => HLCFunction (SomeFunc a1) (ArgWr
 
 x :: HLC ()
 x = do
-  _ <- call1 (Proxy :: Proxy (SomeFunc HLCInt)) undefined
+  _ <- call1 (Proxy :: Proxy (SomeFunc a)) (undefined :: TypedExpr HLCInt)
   return ()
