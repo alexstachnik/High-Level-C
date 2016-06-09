@@ -12,17 +12,18 @@ newtype TyCon = TyCon String
 instance Printable TyCon where
   pp (TyCon str) = text str
 
-data SomeType = DefTy TyCon [SomeType]
+data SomeType = DefTy TyCon
+              | TyConApp SomeType [SomeType]
               | IndefTy TyVar
-              | TyFamily String SomeType
+              | TyFamily String [SomeType]
               | NullTy
               | NatType Integer
                deriving (Eq,Ord,Show)
 instance Printable SomeType where
-  pp (DefTy tycon []) = pp tycon
-  pp (DefTy tycon args) = parens (pp tycon <+> (hcat $ map pp args))
+  pp (DefTy tycon) = pp tycon
+  pp (TyConApp tycon args) = parens (pp tycon <+> (hcat $ map pp args))
   pp (IndefTy var) = pp var
-  pp (TyFamily family arg) = parens (text family <+> pp arg)
+  pp (TyFamily family args) = parens (text family <+> (hcat $ map pp args))
   pp (NullTy) = text "_"
   pp (NatType n) = int $ fromIntegral n
 
@@ -49,15 +50,9 @@ instance Printable VarSymb where
   pp (VarSymb str) = text str
 
 
-data Passability = IsPassable | NotPassable
-                 deriving (Eq,Ord,Show)
-instance Printable Passability where
-  pp (IsPassable) = text "IsPassable"
-  pp (NotPassable) = text "NotPassable"
-
 type Name = TyCon
 
-data Field = Field Passability SomeType Name
+data Field = Field SomeType Name
            deriving (Eq,Ord,Show)
 
 retArg = VarSymb "retArg"
@@ -77,6 +72,7 @@ data Struct = Struct {structName :: Name,
                       structTyParams :: [TyVar],
                       structTyConstraints :: [TyConstraint],
                       fields :: [Field],
+                      isPassable :: Bool,
                       constructor :: [DoStmt],
                       destructor :: [DoStmt]}
             deriving (Eq,Ord,Show)
@@ -115,25 +111,29 @@ instance Printable BinOp where
   pp HLCTimes = text "`hlcMul`"
   pp HLCDivide = text "`hlcDiv`"
 
-data UnaryOp = HLCDeref
-             | HLCAddrOf
-             deriving (Eq,Ord,Show)
+data UntypedLHS = LHSVar VarSymb
+                | LHSPtr Expr
+                | LHSDeref UntypedLHS
+                | LHSDerefPlusOffset UntypedLHS Expr
+                | LHSElement UntypedLHS SomeType
+                | LHSArrAt UntypedLHS Expr
+                | LHSAddrOf UntypedLHS
+                deriving (Eq,Ord,Show)
 
 data Expr = LitExpr HLCLit
-          | Ident VarSymb
+          | LHSExpr UntypedLHS
           | HaskFunc VarSymb [Expr]
           | Void
           | BinOpExpr BinOp Expr Expr
           | ProxyExpr SomeType
-          | UnaryOpExpr UnaryOp Expr
           | ArrayAt Expr Expr
           deriving (Eq,Ord,Show)
 
-data DoStmt = Assignment VarSymb Expr
+data DoStmt = Assignment Expr Expr
             | Return Expr
             | ConsRet
             | FuncCall VarSymb Name [SomeType] [Expr]
-            | VarDecl VarSymb Expr
+            | MonadicBind VarSymb Expr
             | PrimVarDecl VarSymb Name
             | StructVarDecl VarSymb SomeType
             | Jump VarSymb
@@ -142,7 +142,7 @@ data DoStmt = Assignment VarSymb Expr
             | WhileStmt Expr VarSymb VarSymb [DoStmt]
             deriving (Eq,Ord,Show)
 
-data Export = Export Name [SomeType]
+data Export = Export Name [SomeType] Int
             deriving (Eq,Ord,Show)
 
 data HLCDecl = FuncDecl Function

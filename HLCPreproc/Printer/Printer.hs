@@ -11,21 +11,28 @@ x =
   Function (TyCon "Hey")
   [TyVar "a1"]
   []
-  (DefTy (TyCon "HLCChar") [])
+  (DefTy $ TyCon "HLCChar")
   [IndefTy $ TyVar "a1"]
   [VarSymb "arg1"]
-  [Return (HaskFunc (VarSymb "fromIntType") [Ident $ VarSymb "arg1"])]
+  [Return (HaskFunc (VarSymb "fromIntType") [LHSExpr $ LHSVar $ VarSymb "arg1"])]
 
 y =
   Struct (TyCon "MyStruct")
   [TyVar "a1"]
   [makePassable $ IndefTy $ TyVar "a1"]
-  [Field IsPassable (IndefTy $ TyVar "a1") (TyCon "FieldA"),
-   Field IsPassable (DefTy (TyCon "HLCChar") []) (TyCon "FieldB")]
-  [VarDecl (VarSymb "fieldA") (HaskFunc (VarSymb "makeStructField") [ProxyExpr $ DefTy (TyCon "FieldA") []]),
-   VarDecl (VarSymb "fieldB") (HaskFunc (VarSymb "makeStructField") [ProxyExpr $ DefTy (TyCon "FieldB") []]),
+  [Field (IndefTy $ TyVar "a1") (TyCon "FieldA"),
+   Field (DefTy $ TyCon "HLCChar") (TyCon "FieldB")]
+  True
+  [MonadicBind (VarSymb "fieldA") (HaskFunc (VarSymb "makeStructField") [ProxyExpr $ DefTy $ TyCon "FieldA"]),
+   MonadicBind (VarSymb "fieldB") (HaskFunc (VarSymb "makeStructField") [ProxyExpr $ DefTy $ TyCon "FieldB"]),
    ConsRet]
   [ConsRet]
+
+printExport :: Export -> Doc
+printExport (Export fname tyArgs numArgs) =
+  (text "_ <- call" <> (int numArgs)) <+>
+  parens (text "Proxy :: Proxy" <+> parens (pp fname <+> hcat (map pp tyArgs))) <+>
+  hcat (replicate numArgs (text "undefined"))
 
 
 makeTypeable :: SomeType -> TyConstraint
@@ -35,29 +42,37 @@ makeHLCTypeable :: SomeType -> TyConstraint
 makeHLCTypeable = TyConstraint (TyClass "HLCTypeable")
 
 makePassable :: SomeType -> TyConstraint
-makePassable var = TyEqual (TyFamily "Passability" var) (DefTy (TyCon "IsPassable") [])
+makePassable var = TyEqual (TyFamily "Passability" [var]) (DefTy $ TyCon "IsPassable")
 
 makeTypedExpr :: SomeType -> SomeType
-makeTypedExpr arg = DefTy (TyCon "TypedExpr") [arg]
+makeTypedExpr arg = TyConApp (DefTy $ TyCon "TypedExpr") [arg]
+
+printLHS :: UntypedLHS -> Doc
+printLHS (LHSVar var) = parens (text "TypedLHSVar" <+> pp var)
+printLHS (LHSPtr ptr) = parens (text "TypedLHSPtr" <+> pp ptr)
+printLHS (LHSDeref elt) = parens (text "TypedLHSDeref" <+> printLHS elt)
+printLHS (LHSDerefPlusOffset elt expr) = parens (text "TypedLHSDerefPlusOffset" <+> printLHS elt <+> pp expr)
+printLHS (LHSElement struct fieldname) = parens (text "TypedLHSElement" <+> printLHS struct <+> pp (ProxyExpr fieldname))
+printLHS (LHSArrAt arr elt) = parens (text "TypedLHSArrAt" <+> printLHS arr <+> pp elt)
+printLHS (LHSAddrOf var) = parens (text "TypedLHSAddrOf" <+> printLHS var)
 
 instance Printable Expr where
   pp = printExpr
 
 printExpr :: Expr -> Doc
 printExpr (LitExpr lit) = pp lit
-printExpr (Ident name) = pp name
+printExpr (LHSExpr expr) = printLHS expr
 printExpr (HaskFunc func args) = parens (pp func <+> (hcat $ map pp args))
 printExpr (Void) = empty
 printExpr (ProxyExpr ty) = parens (text "Proxy :: Proxy" <+> pp ty)
 printExpr (BinOpExpr op lhs rhs) = parens (pp lhs <+> pp op <+> pp rhs)
---printExpr (UnaryOpExpr op expr) = 
 
 printStmts :: [DoStmt] -> Doc
 printStmts [] = empty
 printStmts (Assignment lhs rhs:xs) =
   text "assignVar" <+> pp lhs <+> pp rhs $+$
   printStmts xs
-printStmts (VarDecl symb expr:xs) =
+printStmts (MonadicBind symb expr:xs) =
   pp symb <+> text "<-" <+> pp expr $+$
   printStmts xs
 printStmts (Return expr:xs) =
@@ -69,7 +84,7 @@ printStmts (ConsRet:xs) =
 printStmts (FuncCall varname fname tyargs args:xs) =
   pp varname <+> text "<-" <+>
   (text "call" <> (int $ length args)) <+>
-  pp (ProxyExpr $ DefTy fname tyargs) <+>
+  pp (ProxyExpr $ TyConApp (DefTy fname) tyargs) <+>
   (hcat $ map pp args) $+$
   printStmts xs
 printStmts (PrimVarDecl varname ty:xs) =
@@ -100,17 +115,17 @@ printStmts (WhileStmt cond contLabel breakLabel body:rest) =
   parens (printStmts rest)
 
   
-printPassabilityConstraints :: [Field] -> [Doc]
-printPassabilityConstraints [] = []
-printPassabilityConstraints ((Field NotPassable _ _):xs) = printPassabilityConstraints xs
-printPassabilityConstraints ((Field IsPassable ty _):xs) =
-  (pp $ makePassable ty) :
-  printPassabilityConstraints xs
+printPassabilityConstraint :: Field -> Doc
+printPassabilityConstraint (Field ty _) =
+  (pp $ makePassable ty)
 
 printStructArgConstraints :: Struct -> Doc
 printStructArgConstraints (Struct {..}) =
   parens (hcat $ punctuate comma (map (pp . makeHLCTypeable) (map IndefTy structTyParams) ++
-                                  printPassabilityConstraints fields))
+                                  passConstraints))
+  where passConstraints = case isPassable of
+          True -> map printPassabilityConstraint fields
+          False -> []
 
 printStructName :: Struct -> Doc
 printStructName (Struct {..}) =
@@ -121,7 +136,7 @@ printStruct wholeStruct@(Struct {..}) =
   text "data" <+> printStructName wholeStruct $+$
   text "deriving instance" <+>
   parens (hcat $ punctuate comma $ map (pp . makeTypeable) (map IndefTy structTyParams)) <+>
-  text "=>" <+> pp (DefTy (TyCon "Typeable") []) <+>
+  text "=>" <+> pp (DefTy $ TyCon "Typeable") <+>
   parens (pp structName <+> hsep (map pp structTyParams)) $+$
   text "instance" <+>
   printStructArgConstraints wholeStruct <+>
@@ -139,22 +154,22 @@ printStruct wholeStruct@(Struct {..}) =
           nest 2 (printStmts constructor) $+$
           text "destructor _" <+> pp retArg <+> text "= do" $+$
           nest 2 (printStmts destructor))
-  where passability = case all isPassable fields of
+  where passability = case isPassable of
           True -> "IsPassable"
           False -> "NotPassable"
 
-isPassable :: Field -> Bool
-isPassable (Field t _ _) = t == IsPassable
-
-printStructFieldClassInst wholeStruct (Field passable ty name) =
+printStructFieldClassInst wholeStruct (Field ty name) =
   text "instance" <+>
   printStructArgConstraints wholeStruct <+>
-  text "=> StructFieldClass" <+> pp passable <+>
+  text "=> StructFieldClass" <+> passable <+>
   parens (printStructName wholeStruct) <+>
   pp name <+> pp ty
+  where passable = case isPassable wholeStruct of
+          True -> text "IsPassable"
+          False -> text "NotPassable"
 
 declFieldName :: Field -> Doc
-declFieldName (Field passable ty name) =
+declFieldName (Field ty name) =
   text "data" <+> pp name <+> text "deriving (Typeable)"
 
 printFuncName :: Function -> Doc
