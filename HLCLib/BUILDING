@@ -1,0 +1,7 @@
+To build install ghc (version 7.10 or greater) and cabal (at least 1.18)
+
+cabal sandbox init
+cabal install
+
+For development use 'cabal repl'
+
