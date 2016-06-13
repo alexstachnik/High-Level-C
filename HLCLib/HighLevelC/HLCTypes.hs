@@ -167,8 +167,6 @@ data HLCBlock = HLCBlock {blockVars :: [Variable],
                           blockRetCxt :: Context}
               deriving (Eq,Ord,Show,Data,Typeable)
 
-emptyBlock = HLCBlock [] (StatementList []) NextLine
-
 data Context = NullContext HLCExpr
              | SomeContext HLCSymbol
              | NextLine
@@ -288,7 +286,6 @@ untypeLHS (TypedLHSArrAt arr ix) =
   LHSDerefPlusOffset (untypeLHS arr) (fromTypedExpr ix)
 untypeLHS (TypedLHSAddrOf x) = LHSAddrOf (untypeLHS x)
 
-
 lhsExpr :: TypedLHS a -> TypedExpr a
 lhsExpr = TypedExpr . LHSExpr . untypeLHS
 
@@ -313,7 +310,6 @@ readElt struct _ =
 expVar :: HLCSymbol -> HLCExpr
 expVar = LHSExpr . LHSVar
 
-
 getFuncName :: (Typeable a, HLCFunction a b c) => Proxy a -> FuncName
 getFuncName = FuncName . makeSafeName . show . typeRep
 
@@ -326,9 +322,10 @@ getILType = ILTypeName . fromSafeName . fromStructName . getStructName
 getObjType :: forall a. (HLCTypeable a) => a -> ILType
 getObjType _ = fromTW (hlcType :: TW a)
 
-
-
 structHLCType :: forall a p. (Struct p a) => TW a
 structHLCType = TW $ BaseType NotConst
   (ILStructRef $ getILType (Proxy :: Proxy a))
+
+emptyBlock = HLCBlock [] (StatementList []) NextLine
+
 

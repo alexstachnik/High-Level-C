@@ -75,9 +75,10 @@ call1 :: forall name a1 retType.
           HLCTypeable a1, HLCTypeable retType,
           Passability a1 ~ IsPassable) =>
          Proxy name ->
-         TypedExpr a1 ->
+         HLC (TypedExpr a1) ->
          HLC (TypedExpr retType)
-call1 proxyName arg1 = do
+call1 proxyName marg1 = do
+  arg1 <- marg1
   [d1] <- mapM (makeHLCSymbol . makeSafeName) ["d1"]
   let argFields = [Argument d1 (getObjType arg1)]
       untypedArgs = [fromTypedExpr arg1]
@@ -95,10 +96,12 @@ call2 :: forall name a1 a2 retType.
           Passability a1 ~ IsPassable,
           Passability a2 ~ IsPassable) =>
          Proxy name ->
-         TypedExpr a1 ->
-         TypedExpr a2 ->
+         HLC (TypedExpr a1) ->
+         HLC (TypedExpr a2) ->
          HLC (TypedExpr retType)
-call2 proxyName arg1 arg2 = do
+call2 proxyName marg1 marg2 = do
+  arg1 <- marg1
+  arg2 <- marg2
   [d1,d2] <- mapM (makeHLCSymbol . makeSafeName) ["d1","d2"]
   let argFields = [Argument d1 (getObjType arg1),
                    Argument d2 (getObjType arg2)]

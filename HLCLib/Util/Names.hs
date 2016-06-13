@@ -1,4 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Util.Names where
 
 import Language.C.Data.Ident
@@ -7,9 +9,10 @@ import qualified Data.Map as M
 import Data.List
 import Data.Char
 import Data.Data
+import Data.String
 
 newtype SafeName = SafeName {fromSafeName :: String}
-                 deriving (Eq,Ord,Show,Data,Typeable)
+                 deriving (Eq,Ord,Show,Data,Typeable,IsString)
 
 data HLCSymbol = HLCSymbol {hlcSymbolUID :: Integer,
                             hlcSymbolPrefName :: SafeName}

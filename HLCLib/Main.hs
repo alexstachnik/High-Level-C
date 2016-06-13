@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -26,11 +29,13 @@ import Language.C.Syntax.AST
 import Language.C.Syntax.Constants
 
 import Debug.Trace
-
+import Data.Proxy
 import Data.Typeable
 
 import Util.Names
+import Quasi.Parser
 import Quasi.QuasiC
+import Quasi.QuasiTypes
 import HighLevelC.HLC
 import HighLevelC.HLCCalls
 import HighLevelC.HLCTypes
@@ -49,33 +54,46 @@ main :: IO ()
 main = print 3
 
 
-data MyStruct a
-deriving instance Typeable a => Typeable (MyStruct a)
-instance (HLCTypeable a, Passability a ~ IsPassable) => HLCTypeable (MyStruct a) where
-  hlcType = structHLCType
-
-data FieldA deriving (Typeable)
-data FieldB deriving (Typeable)
-
-instance (HLCTypeable a,Passability a ~ IsPassable) =>
-         StructFieldClass IsPassable (MyStruct a) FieldA a
-instance (HLCTypeable a,Passability a ~ IsPassable) =>
-         StructFieldClass IsPassable (MyStruct a) FieldB HLCChar
 
 
-instance (HLCTypeable a,Passability a ~ IsPassable) => Struct IsPassable (MyStruct a) where
-  constructor _ makeStructField cxt = do
-    fieldA <- makeStructField (Proxy :: Proxy FieldA)
-    fieldB <- makeStructField (Proxy :: Proxy FieldB)
-    return cxt
-  destructor _ cxt = return cxt
+
+$(generateStructDesc yStruct)
+someCons _ makeStructField cxt = do
+  fieldA <- makeStructField (Proxy :: Proxy FieldA)
+  fieldB <- makeStructField (Proxy :: Proxy FieldB)
+  return cxt
+someDest _ cxt = do
+  return cxt
 
 
-data SomeFunc a1
-instance (HLCTypeable a1,HLCBasicIntType a1) => HLCFunction (SomeFunc a1) (ArgWrap1 (TypedExpr a1)) HLCChar where
-  call _ ret = ArgWrap1 (\n -> (ret (fromIntType n :: TypedExpr HLCChar)))
+$(generateFunction xFunc)
+hey ret n = ret (fromIntType n :: TypedExpr HLCChar)
+
 
 x :: HLC ()
 x = do
-  _ <- call1 (Proxy :: Proxy (SomeFunc a)) (undefined :: TypedExpr HLCInt)
+--  _ <- someFunc (undefined :: HLC (TypedExpr HLCInt))
+  foo :: TypedVar HLCInt <- makePrimVar "foo"
   return ()
+
+fff = do
+  _ <- callHey (return undefined :: HLC (TypedExpr HLCInt))
+  return ()
+
+$(generateStructDesc [structDefn|SomeStructType forall a1 a2.  =>
+                                {FieldAA :: a1,FieldBB :: a2,FieldCC :: HLCInt} where
+                                isPassable = True
+                                constructor = cons2
+                                destructor = dest2|])
+
+cons2 _ makeStructField cxt = do
+  fieldA <- makeStructField (Proxy :: Proxy FieldAA)
+  fieldB <- makeStructField (Proxy :: Proxy FieldBB)
+  fieldC <- makeStructField (Proxy :: Proxy FieldCC)
+  return cxt
+dest2 _ cxt = do
+  return cxt
+
+
+$(generateFunction [funcDefn|SomeFunc someFunc callSomeFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
+someFunc ret n m = ret (fromIntType m)

@@ -2,6 +2,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 
 module HighLevelC.VarDecls where
 
@@ -13,6 +16,8 @@ import HighLevelC.HLCTypes
 import HighLevelC.HLC
 import HighLevelC.BasicTypes
 import HighLevelC.CWriter
+
+import Language.Haskell.TH
 
 makePrimVar :: forall a. (HLCPrimType a) =>
                SafeName ->
@@ -47,7 +52,9 @@ makeLocalStruct name = HLC $ do
 
 assignVar :: forall a. (HLCTypeable a, Passability a ~ IsPassable) =>
              TypedLHS a ->
-             TypedExpr a ->
+             HLC (TypedExpr a) ->
              HLC ()
-assignVar lhs rhs = HLC $ writeStmt $ AssignmentStmt (untypeLHS lhs) (fromTypedExpr rhs)
+assignVar lhs rhs = do
+  rhs' <- rhs
+  HLC $ writeStmt $ AssignmentStmt (untypeLHS lhs) (fromTypedExpr rhs')
 

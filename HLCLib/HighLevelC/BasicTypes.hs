@@ -117,9 +117,9 @@ instance HLCNumType HLCUInt32
 instance HLCNumType HLCUInt64
 instance HLCNumType HLCBool
 
-charLit :: Word8 -> TypedExpr HLCChar
-charLit = TypedExpr . LitExpr . CharLit
+charLit :: Word8 -> HLC (TypedExpr HLCChar)
+charLit = return . TypedExpr . LitExpr . CharLit
 
-intLit :: Integer -> TypedExpr HLCInt
-intLit = TypedExpr . LitExpr . IntLit
+intLit :: Integer -> HLC (TypedExpr HLCInt)
+intLit = return . TypedExpr . LitExpr . IntLit
 
