@@ -52,20 +52,6 @@ import Printer.PostProcess
 import Language.Haskell.TH
 import Language.Haskell.TH as TH
 
-main :: IO ()
-main = print 3
-
-
-
-
-
-
-x :: HLC ()
-x = do
---  _ <- someFunc (undefined :: HLC (TypedExpr HLCInt))
-  foo :: TypedVar HLCInt <- makePrimVar "foo"
-  return ()
-
 
 $(generateStructDesc [structDefn|SomeStructType forall a1 a2.  =>
                                 {FieldAA :: a1,FieldBB :: a2,FieldCC :: HLCInt} where
@@ -121,3 +107,6 @@ fff = do
   _ <- callSomeFunc (return undefined :: HLC (TypedExpr HLCInt)) (return undefined)
   _ <- callDoStuff (return undefined :: HLC (TypedExpr HLCInt))
   return ()
+
+main :: IO ()
+main = print $ pretty $ printCWriter $ processSymbols $ runOuterHLC fff
