@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Printer.PostProcess where
 
@@ -16,45 +17,40 @@ import Util.Names
 
 processSymbols :: CWriter -> CWriter
 processSymbols c =
-  case fillInSymbols (S.fromList $ concat $ getExactSymbols c) c of
-    (NameContext _ x) -> x
+  case fillInSymbols (M.empty) (S.fromList $ concat $ getExactSymbols c) c of
+    (NameContext _ _ x) -> x
 
-symbToString :: Bool -> HLCSymbol -> String
-symbToString True (HLCSymbol uid prefName) = fromSafeName prefName ++ show uid
-symbToString False (HLCSymbol uid prefName) = fromSafeName prefName
-symbToString _ (ExactSymbol name) = name
+makeExact :: HLCSymbol -> M.Map Integer String -> S.Set String -> NameContext HLCSymbol
+makeExact symb@(ExactSymbol _) idMap set = NameContext idMap set symb
+makeExact symb@(HLCSymbol uid prefName) idMap set =
+  case M.lookup uid idMap of
+    (Just name) -> NameContext idMap set $ ExactSymbol name
+    Nothing -> let newName = case S.member (fromSafeName prefName) set of
+                     True -> fromSafeName prefName ++ show uid
+                     False -> fromSafeName prefName in
+               NameContext (M.insert uid newName idMap) (S.insert newName set) $
+               ExactSymbol newName
 
-addSymb :: HLCSymbol -> S.Set String -> S.Set String
-addSymb (ExactSymbol _) set = set
-addSymb symb@(HLCSymbol _ _) set = S.insert newName set
-  where baseName = symbToString False symb
-        newName = symbToString (S.member baseName set) symb
-
-makeExact :: HLCSymbol -> S.Set String -> HLCSymbol
-makeExact symb@(ExactSymbol _) _ = symb
-makeExact symb@(HLCSymbol _ _) set = ExactSymbol newName
-  where baseName = symbToString False symb
-        newName = symbToString (S.member baseName set) symb
-
-fillInSymbols :: (Data a) => S.Set String -> a -> NameContext a
-fillInSymbols cxt d =
-  gfoldl fillInHelper (NameContext cxt) d
+fillInSymbols :: (Data a) => M.Map Integer String -> S.Set String -> a -> NameContext a
+fillInSymbols idMap cxt d =
+  gfoldl fillInHelper (NameContext idMap cxt) d
 
 fillInHelper :: forall d b. Data d => NameContext (d -> b) -> d -> NameContext b
-fillInHelper (NameContext cxt cons) elt =
+fillInHelper (NameContext idMap cxt cons) elt =
   case eqT of
     (Just (Refl :: HLCSymbol :~: d)) ->
-     NameContext (addSymb elt cxt) (cons $ makeExact elt cxt)
+      let (NameContext newIdMap newCxt newElt) = makeExact elt idMap cxt in
+      NameContext newIdMap newCxt (cons newElt)
     Nothing -> case eqT of
-      (Just (Refl :: StatementList :~: d)) ->
-        let (NameContext _ newElt) = fillInSymbols cxt elt in
-        NameContext cxt (cons newElt)
+      (Just (Refl :: HLCBlock :~: d)) ->
+        let (NameContext _ _ newElt) = fillInSymbols idMap cxt elt in
+        NameContext idMap cxt (cons newElt)
       Nothing ->
-        let (NameContext newCxt newElt) = fillInSymbols cxt elt in
-        NameContext newCxt (cons newElt)
+        let (NameContext newIdMap newCxt newElt) = fillInSymbols idMap cxt elt in
+        NameContext newIdMap newCxt (cons newElt)
      
 
-data NameContext a = NameContext (S.Set String) a
+data NameContext a = NameContext (M.Map Integer String) (S.Set String) a
 
 getExactSymbols :: (Data a) => a -> [[String]]
 getExactSymbols = gmapQ getExactSymbolHelper

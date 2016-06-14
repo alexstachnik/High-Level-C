@@ -106,7 +106,7 @@ printBlock cxtStack (HLCBlock blockVars (StatementList blockStmts) retCxt) =
       (concatMap (printBlock []) $
        concatMap snd $
        takeUntil (\(s,_) -> s == Just symb) cxtStack) ++
-      [gotoSymb symb]
+      [symbLabel symb]
     NextLine -> []
 
 returnStmt :: HLCExpr -> CCompoundBlockItem NodeInfo
@@ -115,6 +115,9 @@ returnStmt expr = CBlockStmt $ CReturn (Just $ printExpr expr) e
 
 gotoSymb :: HLCSymbol -> CCompoundBlockItem NodeInfo
 gotoSymb symb  = CBlockStmt $ CGoto (extractExactSymbol symb) e
+
+symbLabel :: HLCSymbol -> CCompoundBlockItem NodeInfo
+symbLabel symb  = CBlockStmt $ CLabel (extractExactSymbol symb) (CExpr Nothing e) [] e
 
 printExpr :: HLCExpr -> CExpression NodeInfo
 printExpr (LHSExpr lhs) = printLHS lhs

@@ -1,3 +1,4 @@
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE RankNTypes #-}
@@ -43,6 +44,7 @@ import HighLevelC.CWriter
 import HighLevelC.BasicTypes
 import HighLevelC.PrimFunctions
 import HighLevelC.VarDecls
+import HighLevelC.Operators
 import IntermediateLang.ILTypes
 import Printer.Printer
 import Printer.PostProcess
@@ -57,18 +59,6 @@ main = print 3
 
 
 
-$(generateStructDesc yStruct)
-someCons _ makeStructField cxt = do
-  fieldA <- makeStructField (Proxy :: Proxy FieldA)
-  fieldB <- makeStructField (Proxy :: Proxy FieldB)
-  return cxt
-someDest _ cxt = do
-  return cxt
-
-
-$(generateFunction xFunc)
-hey ret n = ret (fromIntType n :: TypedExpr HLCChar)
-
 
 x :: HLC ()
 x = do
@@ -76,9 +66,6 @@ x = do
   foo :: TypedVar HLCInt <- makePrimVar "foo"
   return ()
 
-fff = do
-  _ <- callHey (return undefined :: HLC (TypedExpr HLCInt))
-  return ()
 
 $(generateStructDesc [structDefn|SomeStructType forall a1 a2.  =>
                                 {FieldAA :: a1,FieldBB :: a2,FieldCC :: HLCInt} where
@@ -94,6 +81,43 @@ cons2 _ makeStructField cxt = do
 dest2 _ cxt = do
   return cxt
 
+class Group s elt | elt -> s where
+  add :: s -> elt -> elt -> elt
 
-$(generateFunction [funcDefn|SomeFunc someFunc callSomeFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
-someFunc ret n m = ret (fromIntType m)
+$(generateStructDesc [structDefn|GaloisField => {Order :: HLCInt} where
+                                isPassable = True
+                                constructor = galoisCons
+                                destructor = galoisDest|])
+galoisCons _ makeStructField cxt = do
+  order <- makeStructField (Proxy :: Proxy Order)
+  assignVar order (intLit 7)
+  return cxt
+galoisDest _ cxt = return cxt
+
+instance Group (HLC (TypedExpr GaloisField)) (HLC (TypedExpr HLCInt)) where
+  add field lhs rhs = do
+    field' <- field
+    hlcMod (hlcAdd lhs rhs) (return $ readElt field' (Proxy :: Proxy Order))
+
+$(generateFunction [funcDefn|doStuff callDoStuff HLCInt -> HLCInt|])
+
+doStuff :: (TypedExpr HLCInt -> HLC b) -> TypedExpr HLCInt -> HLC b
+doStuff ret n = do
+  galois :: TypedVar GaloisField <- makeLocalStruct "GF"
+  m :: TypedVar HLCInt <- makePrimVar "m"
+  result <- add (return $ lhsExpr $ TypedLHSVar galois) (return n) (return $ lhsExpr $ TypedLHSVar m)
+  ret result
+
+$(generateFunction [funcDefn|someFunc callSomeFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
+someFunc ret n m = do
+  x :: TypedVar (HLCUniquePtr (SomeStructType HLCInt HLCInt)) <- allocMem "x" (intLit 3)
+  assignVar (TypedLHSElement (TypedLHSDeref (TypedLHSVar x)) (Proxy :: Proxy FieldAA)) (intLit 5)
+  n <- intLit 1
+  assignVar (TypedLHSElement (TypedLHSDerefPlusOffset (TypedLHSVar x) n) (Proxy :: Proxy FieldAA)) (intLit 4)
+  ret (fromIntType m)
+
+
+fff = do
+  _ <- callSomeFunc (return undefined :: HLC (TypedExpr HLCInt)) (return undefined)
+  _ <- callDoStuff (return undefined :: HLC (TypedExpr HLCInt))
+  return ()

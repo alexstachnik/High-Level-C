@@ -8,6 +8,7 @@
 module Quasi.QuasiTypes where
 
 import Data.Word
+import Data.Char
 import Data.Data
 import Data.Typeable
 import HighLevelC.HLCTypes
@@ -19,8 +20,7 @@ import Text.PrettyPrint
 data Field = Field Name Type
            deriving (Eq,Ord,Show,Data)
 
-data Function = Function {funcName :: Name,
-                          funcTyParams :: [TyVarBndr],
+data Function = Function {funcTyParams :: [TyVarBndr],
                           funcTyConstraints :: [Type],
                           retType :: Type,
                           funcArgTypes :: [Type],
@@ -38,32 +38,14 @@ data StructDesc = StructDesc {structName :: Name,
                               destructor :: Name}
             deriving (Eq,Ord,Show,Data)
 
-xzxcas =
-  [d|
-     type FieldA = HLCInt
-     type FieldB a = a|]
-
-
-xFunc =
-  Function (mkName "Hey")
-  [PlainTV $ mkName "a1"]
-  [AppT (ConT ''HLCBasicIntType) (VarT $ mkName "a1")]
-  (ConT ''HLCChar)
-  [VarT (mkName "a1")]
-  (mkName "hey")
-  (mkName "callHey")
-
-yStruct = StructDesc (mkName "SomeStructTy")
-  [PlainTV $ mkName "a1"]
-  [AppT (ConT ''HLCBasicIntType) (VarT $ mkName "a1")]
-  [Field (mkName "FieldA") (VarT $ mkName "a1"),
-   Field (mkName "FieldB") (ConT ''HLCChar)]
-  True
-  (mkName "someCons")
-  (mkName "someDest")
 
 generateFunction :: Function -> Q [Dec]
-generateFunction (Function {..}) =
+generateFunction func = do
+  funcName <- newName $ (\(x:xs) -> toUpper x : xs) $ (nameBase $ funcCallName func)
+  generateFunction' funcName func
+
+generateFunction' :: Name -> Function -> Q [Dec]
+generateFunction' funcName (Function {..}) =
   sequence
   ([dataD (return []) funcName funcTyParams [] [],
     instanceD argConstraints (appT

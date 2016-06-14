@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -104,6 +106,49 @@ instance HLCPrimType HLCUInt32
 instance HLCPrimType HLCUInt64
 instance HLCPrimType HLCBool
 
+instance Struct IsPassable HLCInt where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCChar where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCDouble where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct NotPassable HLCString where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCVoid where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCInt8 where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCInt16 where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCInt32 where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCInt64 where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCUInt8 where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCUInt16 where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCUInt32 where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCUInt64 where
+  constructor _ _ = return
+  destructor _ = return
+instance Struct IsPassable HLCBool where
+  constructor _ _ = return
+  destructor _ = return
+
 instance HLCNumType HLCInt
 instance HLCNumType HLCChar
 instance HLCNumType HLCDouble
@@ -122,4 +167,13 @@ charLit = return . TypedExpr . LitExpr . CharLit
 
 intLit :: Integer -> HLC (TypedExpr HLCInt)
 intLit = return . TypedExpr . LitExpr . IntLit
+
+doubleLit :: Double -> HLC (TypedExpr HLCDouble)
+doubleLit = return . TypedExpr . LitExpr . DoubleLit
+
+stringLit :: String -> HLC (TypedExpr HLCString)
+stringLit = return . TypedExpr . LitExpr . StrLit
+
+void :: TypedExpr HLCVoid
+void = TypedExpr Void
 

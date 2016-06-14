@@ -57,6 +57,7 @@ asstToConstraint (WildCardA _) =
 
 getConstraints :: Type -> [TH.Type]
 getConstraints (TyForall _ assts _) = map asstToConstraint assts
+getConstraints _ = []
 
 getRetType :: Type -> TH.Type
 getRetType (TyForall binds cxt ty)= getRetType ty

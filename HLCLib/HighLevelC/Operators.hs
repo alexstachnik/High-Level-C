@@ -33,3 +33,30 @@ hlcDiv lhs rhs = do
   lhs' <- lhs
   rhs' <- rhs
   return $ TypedExpr $ ExprBinOp HLCDivide (fromTypedExpr lhs') (fromTypedExpr rhs')
+
+hlcMod :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcMod lhs rhs = do
+  lhs' <- lhs
+  rhs' <- rhs
+  return $ TypedExpr $ ExprBinOp HLCRem (fromTypedExpr lhs') (fromTypedExpr rhs')
+
+hlcEqual :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr HLCBool)
+hlcEqual lhs rhs = do
+  lhs' <- lhs
+  rhs' <- rhs
+  return $ TypedExpr $ ExprBinOp HLCEqual (fromTypedExpr lhs') (fromTypedExpr rhs')
+
+ptrEqual :: (HLCTypeable a, HLCTypeable b) =>
+            HLC (TypedExpr (HLCPtr t a)) -> HLC (TypedExpr (HLCPtr t' b)) -> HLC (TypedExpr HLCBool)
+ptrEqual lhs rhs = do
+  lhs' <- lhs
+  rhs' <- rhs
+  return $ TypedExpr $ ExprBinOp HLCEqual (fromTypedExpr lhs') (fromTypedExpr rhs')
+
+addrOf :: HLC (TypedVar a) -> HLC (TypedExpr (HLCPtr WeakPtr a))
+addrOf var = do
+  var' <- var
+  return $ lhsExpr $ TypedLHSAddrOf $ TypedLHSVar var'
+
+
+

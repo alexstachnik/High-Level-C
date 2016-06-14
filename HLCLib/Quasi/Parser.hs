@@ -20,7 +20,7 @@ import qualified Text.Parsec.Token as P
 
 import Language.Haskell.TH.Quote
 
-y = "SomeFunc someFunc callSomeFunc (HLCBasicIntType a1) => a1 -> a2 -> HLCInt -> HLCChar"
+y = "someFunc callSomeFunc (HLCBasicIntType a1) => a1 -> a2 -> HLCInt -> HLCChar"
 yy = "a1 -> a2 -> HLCInt -> HLCChar"
 
 x = "SomeStructType forall a1 a2. (HLCTypeable a1, Passability a2 ~ IsPassable) => {FieldA :: a1,FieldB :: a2,FieldC :: HLCInt} where\n  isPassable = True\n  constructor = someCons\n  destructor = someDest"
@@ -49,7 +49,6 @@ quoteFunc str =
 
 funcParser :: Parsec String u Function
 funcParser = do
-  name <- fmap mkName identifier
   body <- fmap mkName identifier
   callName <- fmap mkName identifier
   funcTypeStr <- many anyChar
@@ -58,7 +57,7 @@ funcParser = do
       constraints = getConstraints funcType
       retType = getRetType funcType
       argTypes = init $ getFuncComponents funcType
-  return $ Function name tyParams constraints retType argTypes body callName 
+  return $ Function tyParams constraints retType argTypes body callName 
 
 
 lexer = P.makeTokenParser haskellDef

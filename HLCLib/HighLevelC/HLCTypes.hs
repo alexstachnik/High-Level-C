@@ -1,10 +1,11 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+
+
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -96,7 +97,7 @@ instance Monoid CWriter where
                          funcDefs = funcDefs a >< funcDefs b,
                          stmts = stmts a >< stmts b,
                          varDecls = varDecls a >< varDecls b,
-                         structVarDecls = Sq.empty}
+                         structVarDecls = structVarDecls a >< structVarDecls b}
 
 
 newtype FuncName = FuncName {fromFuncName :: SafeName}
@@ -202,6 +203,7 @@ data HLCBinOp = HLCPlus
               | HLCMinus
               | HLCTimes
               | HLCDivide
+              | HLCEqual
               | HLCRem
               | HLCLAnd
               | HLCLOr
@@ -219,6 +221,7 @@ data HLCLit = CharLit Word8
 class (HLCTypeable a) => HLCBasicIntType a
 class (HLCTypeable a) => HLCPrimType a
 class (HLCTypeable a) => HLCNumType a
+
 
 instance (Typeable b, HLCPrimType a) => HLCPrimType (HLCPtr b a)
 
@@ -271,7 +274,7 @@ data TypedLHS a where
 data VarArg = forall a . ConsArg (TypedExpr a) VarArg
             | NilArg
 
-data ExtFunction a = ExtFunction HLCSymbol
+data ExtFunction a = ExtFunction {fromExtFunction :: HLCSymbol}
                    | VarExtFunction HLCSymbol
 
 untypeLHS :: TypedLHS a -> UntypedLHS
@@ -327,5 +330,7 @@ structHLCType = TW $ BaseType NotConst
   (ILStructRef $ getILType (Proxy :: Proxy a))
 
 emptyBlock = HLCBlock [] (StatementList []) NextLine
+
+
 
 

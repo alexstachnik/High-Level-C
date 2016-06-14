@@ -6,6 +6,8 @@ module HighLevelC.CWriter where
 
 import qualified Data.Sequence as Sq
 
+import Debug.Trace
+
 import Data.Sequence((><),(|>))
 import Data.Foldable(toList)
 
@@ -27,7 +29,7 @@ hideStructVarDecls (CWriter {..}) = CWriter {structVarDecls = Sq.empty,
                                              ..}
 
 grabStructVars :: (MonadWriter CWriter m) => m a -> m [StructField]
-grabStructVars m = censor hideStructVarDecls $ do
+grabStructVars m = censor (hideBlock . hideStructVarDecls) $ do
   (_,c) <- listen m
   return $ toList $ structVarDecls c
 
