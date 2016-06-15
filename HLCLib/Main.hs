@@ -97,9 +97,8 @@ someFunc ret n m = do
   x <- allocMem (type_SomeStructType type_Int type_Int) (intLit 3)
   ((deref x) %. fieldAA) =: (intLit 5)
   n' <- intLit 1
-  m' <- m
   ((x %@ n') %. fieldAA) =: (intLit 4)
-  ret (return $ fromIntType m')
+  ret $ fromIntType m
 
 
 type HLCIntT = HLC (TypedExpr HLCInt)

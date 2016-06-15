@@ -116,8 +116,8 @@ instance HLCBasicIntType HLCChar
 instance HLCBasicIntType HLCBool
 
 
-fromIntType :: forall a b. (HLCBasicIntType a, HLCBasicIntType b) => TypedExpr a -> TypedExpr b
-fromIntType = TypedExpr . HLCCast (fromTW (hlcType :: TW b)) . fromTypedExpr
+fromIntType :: forall a b. (HLCBasicIntType a, HLCBasicIntType b) => HLC (TypedExpr a) -> HLC (TypedExpr b)
+fromIntType = fmap (TypedExpr . HLCCast (fromTW (hlcType :: TW b)) . fromTypedExpr)
 
 
 instance HLCPrimType HLCInt
