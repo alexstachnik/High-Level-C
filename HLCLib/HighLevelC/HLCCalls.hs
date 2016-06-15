@@ -59,18 +59,19 @@ call0 :: forall name retType.
           retType,
           HLCTypeable retType) =>
          Proxy name ->
+         Variable ->
          HLC (TypedExpr retType)
-call0 proxyName = do
+call0 proxyName retVar = do
   let argFields = []
       untypedArgs = []
   callFunc proxyName (zip argFields untypedArgs)
-    (fromArgWrap0 $ call proxyName (return . NullContext . fromTypedExpr))
+    (fromArgWrap0 $ call proxyName (returnContext proxyName))
   
 newtype ArgWrap1 a r = ArgWrap1 {fromArgWrap1 :: a -> r}
 call1 :: forall name a1 retType.
          (HLCFunction
           name
-          (ArgWrap1 (TypedExpr a1))
+          (ArgWrap1 (HLC (TypedExpr a1)))
           retType,
           HLCTypeable a1, HLCTypeable retType,
           Passability a1 ~ IsPassable) =>
@@ -83,14 +84,22 @@ call1 proxyName marg1 = do
   let argFields = [Argument d1 (getObjType arg1)]
       untypedArgs = [fromTypedExpr arg1]
   callFunc proxyName (zip argFields untypedArgs)
-    ((fromArgWrap1 $ call proxyName (return . NullContext . fromTypedExpr))
-     (TypedExpr $ LHSExpr $ LHSVar d1))
+    ((fromArgWrap1 $ call proxyName (returnContext proxyName))
+     (return $ TypedExpr $ LHSExpr $ LHSVar d1))
+
+returnContext :: (HLCFunction funcName args retType) =>
+                 Proxy funcName -> HLC (TypedExpr retType) -> HLC Context
+returnContext proxyName retVal = do
+  (Just retVar) <- HLC $ lookupFuncRetVar $ getFuncName proxyName
+  retVal' <- retVal
+  return $ NullContext retVar $ fromTypedExpr retVal'
+  
 
 newtype ArgWrap2 a1 a2 r = ArgWrap2 {fromArgWrap2 :: a1 -> a2 -> r}
 call2 :: forall name a1 a2 retType.
          (HLCFunction
           name
-          (ArgWrap2 (TypedExpr a1) (TypedExpr a2))
+          (ArgWrap2 (HLC (TypedExpr a1)) (HLC (TypedExpr a2)))
           retType,
           HLCTypeable a1, HLCTypeable a2, HLCTypeable retType,
           Passability a1 ~ IsPassable,
@@ -108,7 +117,7 @@ call2 proxyName marg1 marg2 = do
       untypedArgs = [fromTypedExpr arg1,
                      fromTypedExpr arg2]
   callFunc proxyName (zip argFields untypedArgs)
-    ((fromArgWrap2 $ call proxyName (return . NullContext . fromTypedExpr))
-     (TypedExpr $ LHSExpr $ LHSVar d1)
-     (TypedExpr $ LHSExpr $ LHSVar d2))
+    ((fromArgWrap2 $ call proxyName (returnContext proxyName))
+     (return $ TypedExpr $ LHSExpr $ LHSVar d1)
+     (return $ TypedExpr $ LHSExpr $ LHSVar d2))
 

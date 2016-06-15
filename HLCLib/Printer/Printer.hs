@@ -100,8 +100,11 @@ printBlock cxtStack (HLCBlock blockVars (StatementList blockStmts) retCxt) =
   concatMap (printBlock [] . variableCons) blockVars ++
   concatMap (printLabeledStmt cxtStack) blockStmts ++
   case retCxt of
-    (NullContext expr) ->
-      (concatMap (printBlock []) $ concatMap snd cxtStack) ++ [returnStmt expr]
+    (NullContext (Variable retSymb _ _ _ _) expr) ->
+      (CBlockStmt $ CExpr (Just $ CAssign CAssignOp (CVar (extractExactSymbol retSymb) e) (printExpr expr) e) e) :
+      (concatMap (printBlock []) $ concatMap snd cxtStack) ++
+      [returnStmt (LHSExpr $ LHSVar retSymb)]
+    (VoidReturn) -> [returnStmt Void]
     (SomeContext symb) ->
       (concatMap (printBlock []) $
        concatMap snd $
@@ -125,7 +128,10 @@ printExpr (FunctionCall func args) = CCall (printExpr func) (map printExpr args)
 printExpr (LitExpr lit) = CConst (printLit lit)
 printExpr (AccessPart struct elt) = CMember (printExpr struct) (safeNameToIdent elt) False e
 printExpr (SizeOf ty) = CSizeofType (printType ty) e
+printExpr (ExprNegate subexpr) = CUnary CMinOp (printExpr subexpr) e
 printExpr (ExprBinOp binop lhs rhs) = CBinary (printBinOp binop) (printExpr lhs) (printExpr rhs) e
+printExpr (HLCTernary cond ifExpr elseExpr) =
+  CCond (printExpr cond) (Just $ printExpr ifExpr) (printExpr elseExpr) e
 printExpr (HLCCast ty expr) = CCast (printType ty) (printExpr expr) e
 
 printBinOp :: HLCBinOp -> CBinaryOp
@@ -139,6 +145,13 @@ printBinOp HLCLOr = CLorOp
 printBinOp HLCBitAnd = CAndOp
 printBinOp HLCBitOr = COrOp
 printBinOp HLCBitXor = CXorOp
+printBinOp HLCEqual = CEqOp
+printBinOp HLCLT = CLeOp
+printBinOp HLCGT = CGrOp
+printBinOp HLCLTEQ = CLeqOp
+printBinOp HLCGTEQ = CGeqOp
+printBinOp HLCSHL = CShlOp
+printBinOp HLCSHR = CShrOp
 
 printType :: ILType -> CDeclaration NodeInfo
 printType (BaseType constness ty) = CDecl (typeToTypeSpecs constness ty) [] e

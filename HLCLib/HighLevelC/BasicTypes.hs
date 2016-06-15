@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE EmptyDataDecls #-}
@@ -31,6 +30,36 @@ data HLCUInt16
 data HLCUInt32
 data HLCUInt64
 data HLCBool
+
+type Type_Int = HLC (TypedExpr HLCInt)
+type Type_Char = HLC (TypedExpr HLCChar)
+type Type_Double = HLC (TypedExpr HLCDouble)
+type Type_String = HLC (TypedExpr HLCString)
+type Type_Void = HLC (TypedExpr HLCVoid)
+type Type_Int8 = HLC (TypedExpr HLCInt8)
+type Type_Int16 = HLC (TypedExpr HLCInt16)
+type Type_Int32 = HLC (TypedExpr HLCInt32)
+type Type_Int64 = HLC (TypedExpr HLCInt64)
+type Type_UInt8 = HLC (TypedExpr HLCUInt8)
+type Type_UInt16 = HLC (TypedExpr HLCUInt16)
+type Type_UInt32 = HLC (TypedExpr HLCUInt32)
+type Type_UInt64 = HLC (TypedExpr HLCUInt64)
+type Type_Bool = HLC (TypedExpr HLCBool)
+
+type_Int = Proxy :: Proxy HLCInt
+type_Char = Proxy :: Proxy HLCChar
+type_Double = Proxy :: Proxy HLCDouble
+type_String = Proxy :: Proxy HLCString
+type_Void = Proxy :: Proxy HLCVoid
+type_Int8 = Proxy :: Proxy HLCInt8
+type_Int16 = Proxy :: Proxy HLCInt16
+type_Int32 = Proxy :: Proxy HLCInt32
+type_Int64 = Proxy :: Proxy HLCInt64
+type_UInt8 = Proxy :: Proxy HLCUInt8
+type_UInt16 = Proxy :: Proxy HLCUInt16
+type_UInt32 = Proxy :: Proxy HLCUInt32
+type_UInt64 = Proxy :: Proxy HLCUInt64
+type_Bool = Proxy :: Proxy HLCBool
 
 instance HLCTypeable HLCInt where
   hlcType = TW (BaseType NotConst (ILInt Signed))
@@ -149,18 +178,30 @@ instance Struct IsPassable HLCBool where
   constructor _ _ = return
   destructor _ = return
 
-instance HLCNumType HLCInt
-instance HLCNumType HLCChar
-instance HLCNumType HLCDouble
-instance HLCNumType HLCInt8
-instance HLCNumType HLCInt16
-instance HLCNumType HLCInt32
-instance HLCNumType HLCInt64
-instance HLCNumType HLCUInt8
-instance HLCNumType HLCUInt16
-instance HLCNumType HLCUInt32
-instance HLCNumType HLCUInt64
-instance HLCNumType HLCBool
+instance HLCNumType HLCInt where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCChar where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCDouble where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCInt8 where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCInt16 where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCInt32 where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCInt64 where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCUInt8 where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCUInt16 where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCUInt32 where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCUInt64 where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
+instance HLCNumType HLCBool where
+  hlcFromInteger = return . TypedExpr . LitExpr . IntLit
 
 charLit :: Word8 -> HLC (TypedExpr HLCChar)
 charLit = return . TypedExpr . LitExpr . CharLit
@@ -176,4 +217,5 @@ stringLit = return . TypedExpr . LitExpr . StrLit
 
 void :: TypedExpr HLCVoid
 void = TypedExpr Void
+
 

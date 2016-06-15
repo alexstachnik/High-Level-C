@@ -62,24 +62,27 @@ makeHLCSymbol_ safeName = do
   return $ HLCSymbol uid safeName
 
 lookupFunc :: FuncName -> HLC_ (Maybe HLCSymbol)
-lookupFunc x = gets funcInstances >>= (return . M.lookup x)
+lookupFunc x = gets funcInstances >>= (return . (fmap fst) . M.lookup x)
+
+lookupFuncRetVar :: FuncName -> HLC_ (Maybe Variable)
+lookupFuncRetVar x = gets funcInstances >>= (return . (fmap snd) . M.lookup x)
 
 lookupStruct :: StructName -> HLC_ (Maybe HLCSymbol)
 lookupStruct x = gets structInstances >>= (return . M.lookup x)
 
-addFuncInst :: FuncName -> HLCSymbol -> HLC_ ()
-addFuncInst name symb = modify $ \(CodeState {..}) ->
-  CodeState {funcInstances = M.insert name symb funcInstances,..}
+addFuncInst :: FuncName -> (HLCSymbol,Variable) -> HLC_ ()
+addFuncInst name pair = modify $ \(CodeState {..}) ->
+  CodeState {funcInstances = M.insert name pair funcInstances,..}
 
 addStructInst :: StructName -> HLCSymbol -> HLC_ ()
 addStructInst name symb = modify $ \(CodeState {..}) ->
   CodeState {structInstances = M.insert name symb $ structInstances,..}
 
 makeFuncSymb :: (HLCFunction name ty retType) =>
-                Proxy name -> HLC_ HLCSymbol
-makeFuncSymb name = do
+                Proxy name -> Variable -> HLC_ HLCSymbol
+makeFuncSymb name var = do
   let symb = ExactSymbol $ fromSafeName $ fromFuncName $ getFuncName name
-  addFuncInst (getFuncName name) symb
+  addFuncInst (getFuncName name) (symb,var)
   return symb
 
 makeStructSymb :: (Struct p structType) =>
@@ -92,11 +95,13 @@ makeStructSymb name = do
 declareFunc' :: forall name ty retType r. (HLCFunction name ty retType) =>
                 Proxy name -> [Argument] -> HLC Context -> HLC_ HLCSymbol
 declareFunc' proxyName args (HLC func) = do
-  symb <- makeFuncSymb proxyName
+  retVariableName <- makeHLCSymbol_ (SafeName "returnVariable")
   let retType = fromTW (hlcType :: TW retType)
+      retVar = Variable retVariableName retType Nothing emptyBlock emptyBlock
+  symb <- makeFuncSymb proxyName retVar
   block <- grabBlock func
   writeFuncProto $ FunctionProto retType symb args
-  writeFunc $ FunctionDef retType symb args block
+  writeFunc $ FunctionDef retType symb args (addVarToBlock retVar block)
   return symb
     where name = getFuncName proxyName
 
@@ -117,7 +122,7 @@ declareStruct' proxyName = do
     constructor
     (Proxy :: Proxy structType)
     (HLC . makeStructField (Proxy :: Proxy structType))
-    (NullContext Void)
+    VoidReturn
   writeStruct $ StructDef symb fields
   return symb
 

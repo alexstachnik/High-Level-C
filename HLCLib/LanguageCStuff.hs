@@ -145,6 +145,9 @@ int main(int argc, char** argv) {
   return 0;
 }|]
 
+qpf = [cExpr|5<6|]
+
+
 qp = [cTransL|
 void f()
 {

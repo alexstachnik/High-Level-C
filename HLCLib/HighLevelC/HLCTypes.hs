@@ -63,7 +63,7 @@ data CWriter = CWriter {functionProtos :: Sq.Seq FunctionProto,
                         structVarDecls :: Sq.Seq StructField}
              deriving (Eq,Ord,Show,Data,Typeable)
 
-data CodeState = CodeState {funcInstances :: M.Map FuncName HLCSymbol,
+data CodeState = CodeState {funcInstances :: M.Map FuncName (HLCSymbol,Variable),
                             structInstances :: M.Map StructName HLCSymbol,
                             uidState :: Integer}
                  deriving (Show)
@@ -121,7 +121,7 @@ newtype TypedVar a = TypedVar {fromTypedVar :: HLCSymbol} deriving (Eq,Ord,Show,
 class (Typeable name, HLCTypeable retType) =>
       HLCFunction name (tyWrap :: * -> *) retType |
   name -> tyWrap, name -> retType where
-  call :: Proxy name -> (TypedExpr retType -> HLC Context) -> tyWrap (HLC Context)
+  call :: Proxy name -> (HLC (TypedExpr retType) -> HLC Context) -> tyWrap (HLC Context)
 
 type family PermissibleStruct struct field where
   PermissibleStruct IsPassable IsPassable = True
@@ -168,7 +168,8 @@ data HLCBlock = HLCBlock {blockVars :: [Variable],
                           blockRetCxt :: Context}
               deriving (Eq,Ord,Show,Data,Typeable)
 
-data Context = NullContext HLCExpr
+data Context = NullContext Variable HLCExpr
+             | VoidReturn
              | SomeContext HLCSymbol
              | NextLine
              deriving (Eq,Ord,Show,Data,Typeable)
@@ -195,7 +196,9 @@ data HLCExpr = LHSExpr UntypedLHS
              | AccessPart HLCExpr SafeName
              | SizeOf ILType
              | ExprBinOp HLCBinOp HLCExpr HLCExpr
+             | ExprNegate HLCExpr
              | HLCCast ILType HLCExpr
+             | HLCTernary HLCExpr HLCExpr HLCExpr
              | Void
              deriving (Eq,Ord,Show,Data,Typeable)
 
@@ -204,6 +207,12 @@ data HLCBinOp = HLCPlus
               | HLCTimes
               | HLCDivide
               | HLCEqual
+              | HLCLT
+              | HLCGT
+              | HLCLTEQ
+              | HLCGTEQ
+              | HLCSHL
+              | HLCSHR
               | HLCRem
               | HLCLAnd
               | HLCLOr
@@ -220,7 +229,8 @@ data HLCLit = CharLit Word8
 
 class (HLCTypeable a) => HLCBasicIntType a
 class (HLCTypeable a) => HLCPrimType a
-class (HLCTypeable a) => HLCNumType a
+class (HLCTypeable a) => HLCNumType a where
+  hlcFromInteger :: Integer -> HLC (TypedExpr a)
 
 
 instance (Typeable b, HLCPrimType a) => HLCPrimType (HLCPtr b a)
@@ -303,12 +313,20 @@ getFieldName _ = makeSafeName $ show $ typeRep (Proxy :: Proxy a)
 
 readElt :: forall structType fieldName fieldType p.
            (StructFieldClass p structType fieldName fieldType, Typeable fieldName) =>
-           TypedExpr structType ->
+           HLC (TypedExpr structType) ->
            Proxy fieldName ->
-           TypedExpr fieldType
-readElt struct _ =
-  TypedExpr $ AccessPart (fromTypedExpr struct) $
-  getFieldName (Proxy :: Proxy fieldName)
+           HLC (TypedExpr fieldType)
+readElt struct _ = do
+  struct' <- struct
+  return $ TypedExpr $ AccessPart (fromTypedExpr struct') $
+    getFieldName (Proxy :: Proxy fieldName)
+
+(.-) :: forall structType fieldName fieldType p.
+        (StructFieldClass p structType fieldName fieldType, Typeable fieldName) =>
+        HLC (TypedExpr structType) ->
+        Proxy fieldName ->
+        HLC (TypedExpr fieldType)
+(.-) = readElt
 
 expVar :: HLCSymbol -> HLCExpr
 expVar = LHSExpr . LHSVar
@@ -331,6 +349,7 @@ structHLCType = TW $ BaseType NotConst
 
 emptyBlock = HLCBlock [] (StatementList []) NextLine
 
-
+addVarToBlock :: Variable -> HLCBlock -> HLCBlock
+addVarToBlock var (HLCBlock {..}) = HLCBlock {blockVars=var:blockVars,..}
 
 

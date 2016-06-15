@@ -94,3 +94,8 @@ assignVar lhs rhs = do
   rhs' <- rhs
   HLC $ writeStmt $ AssignmentStmt (untypeLHS lhs) (fromTypedExpr rhs')
 
+(=:) :: forall a. (HLCTypeable a, Passability a ~ IsPassable) =>
+        TypedLHS a ->
+        HLC (TypedExpr a) ->
+        HLC ()
+(=:) = assignVar
