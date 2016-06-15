@@ -87,19 +87,18 @@ $(generateFunction [funcDefn|doStuff HLCInt -> HLCInt|])
 
 doStuff :: (HLC (TypedExpr HLCInt) -> HLC b) -> HLC (TypedExpr HLCInt) -> HLC b
 doStuff ret n = do
-  galois :: TypedVar GaloisField <- makeLocalStruct
-  m :: TypedVar HLCInt <- makePrimVar
-  result <- add (return $ lhsExpr $ TypedLHSVar galois) n (return $ lhsExpr $ TypedLHSVar m)
+  galois <- makeLocalStruct type_GaloisField
+  m <- makePrimVar type_Int
+  result <- add (lhsExpr galois) n (lhsVar m)
   ret (return result)
-
 
 $(generateFunction [funcDefn|someFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
 someFunc ret n m = do
-  x :: TypedVar (HLCUniquePtr (SomeStructType HLCInt HLCInt)) <- allocMem (intLit 3)
-  (TypedLHSElement (TypedLHSDeref (TypedLHSVar x)) fieldAA) =: (intLit 5)
+  x <- allocMem (type_SomeStructType type_Int type_Int) (intLit 3)
+  ((deref x) %. fieldAA) =: (intLit 5)
   n' <- intLit 1
   m' <- m
-  (TypedLHSElement (TypedLHSDerefPlusOffset (TypedLHSVar x) n') fieldAA) =: (intLit 4)
+  ((x %@ n') %. fieldAA) =: (intLit 4)
   ret (return $ fromIntType m')
 
 

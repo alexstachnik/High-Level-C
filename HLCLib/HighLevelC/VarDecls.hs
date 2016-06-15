@@ -31,8 +31,9 @@ mallocExpr :: (HLCBasicIntType b) => TypedExpr b -> HLCExpr
 mallocExpr len = FunctionCall (LHSExpr $ LHSVar $ fromExtFunction malloc) [fromTypedExpr len]
 
 allocMem :: forall a b p. (Struct p a,HLCBasicIntType b,HLCNumType b) =>
-            HLC (TypedExpr b) -> HLC (TypedVar (HLCUniquePtr a))
-allocMem len = HLC $ do
+            Proxy a ->
+            HLC (TypedExpr b) -> HLC (TypedLHS (HLCUniquePtr a))
+allocMem _ len = HLC $ do
   symb <- makeHLCSymbol_ "ptr"
   numBytes <- innerHLC $ hlcMul (hlcSizeof (Proxy :: Proxy a)) len
   innerHLC $ declareStruct (Proxy :: Proxy a)
@@ -43,19 +44,21 @@ allocMem len = HLC $ do
       cons = HLCBlock [] (StatementList [consBody]) NextLine
       dest = HLCBlock [] (StatementList [destBody]) NextLine
   writeVar $ Variable symb ptrTy Nothing cons dest
-  return $ TypedVar symb
+  return $ TypedLHSVar $ TypedVar symb
 
 makePrimVar :: forall a. (HLCPrimType a) =>
-               HLC (TypedVar a)
-makePrimVar = HLC $ do
+               Proxy a ->
+               HLC (TypedLHS (TypedVar a))
+makePrimVar _ = HLC $ do
   symb <- makeHLCSymbol_ "primVar"
   let ty = fromTW (hlcType :: TW a)
   writeVar $ Variable symb ty Nothing emptyBlock emptyBlock
-  return $ TypedVar symb
+  return $ TypedLHSVar $ TypedVar symb
 
 makeLocalStruct :: forall structType p. (Struct p structType) =>
-                   HLC (TypedVar structType)
-makeLocalStruct = HLC $ do
+                   Proxy structType ->
+                   HLC (TypedLHS structType)
+makeLocalStruct _ = HLC $ do
   symb <- makeHLCSymbol_ "stVar"
   consCont <- makeHLCSymbol_ $ makeSafeName "conscont"
   destCont <- makeHLCSymbol_ $ makeSafeName "destcont"
@@ -72,7 +75,7 @@ makeLocalStruct = HLC $ do
     (Proxy :: Proxy structType)
     (SomeContext destCont)
   writeVar $ Variable symb ty Nothing cons dest
-  return this
+  return $ TypedLHSVar this
 
 assignVar :: forall a. (HLCTypeable a, Passability a ~ IsPassable) =>
              TypedLHS a ->

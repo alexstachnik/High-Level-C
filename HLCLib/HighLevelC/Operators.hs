@@ -87,6 +87,19 @@ hlcSHR = hlcBinOp HLCSHR
 (%>=) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
 (%>=) = hlcGEQ
 
+(%.) :: StructFieldClass p structType fieldName fieldType =>
+        TypedLHS structType -> Proxy fieldName -> TypedLHS fieldType
+(%.) = TypedLHSElement
+
+deref :: TypedLHS (HLCPtr b a) -> TypedLHS a
+deref = TypedLHSDeref
+
+(%@) :: (HLCBasicIntType c) =>
+           TypedLHS (HLCPtr b a) ->
+           TypedExpr c ->
+           TypedLHS a
+(%@) = TypedLHSDerefPlusOffset
+
 hlcSigNum :: forall a. (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a)
 hlcSigNum val = do
   cond <- (val `hlcLT` hlcFromInteger 0)
@@ -122,7 +135,7 @@ ptrEqual lhs rhs = do
 addrOf :: HLC (TypedVar a) -> HLC (TypedExpr (HLCPtr WeakPtr a))
 addrOf var = do
   var' <- var
-  return $ lhsExpr $ TypedLHSAddrOf $ TypedLHSVar var'
+  lhsExpr $ TypedLHSAddrOf $ TypedLHSVar var'
 
 instance (HLCNumType a) => Num (HLC (TypedExpr a)) where
   m + n = hlcAdd m n

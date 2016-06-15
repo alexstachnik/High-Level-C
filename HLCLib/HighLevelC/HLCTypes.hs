@@ -299,8 +299,11 @@ untypeLHS (TypedLHSArrAt arr ix) =
   LHSDerefPlusOffset (untypeLHS arr) (fromTypedExpr ix)
 untypeLHS (TypedLHSAddrOf x) = LHSAddrOf (untypeLHS x)
 
-lhsExpr :: TypedLHS a -> TypedExpr a
-lhsExpr = TypedExpr . LHSExpr . untypeLHS
+lhsExpr :: TypedLHS a -> HLC (TypedExpr a)
+lhsExpr = return . TypedExpr . LHSExpr . untypeLHS
+
+lhsVar :: TypedLHS (TypedVar a) -> HLC (TypedExpr a)
+lhsVar = return . TypedExpr . LHSExpr . untypeLHS
 
 varArgToList :: VarArg -> [HLCExpr]
 varArgToList NilArg = []
