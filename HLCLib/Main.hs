@@ -81,7 +81,7 @@ galoisDest _ cxt = return cxt
 
 instance Group Type_GaloisField Type_Int where
   add field lhs rhs = do
-    (lhs + rhs) %% (field %- order)
+    (lhs + rhs) %% (field %. order)
 
 $(generateFunction [funcDefn|doStuff HLCInt -> HLCInt|])
 
@@ -95,9 +95,9 @@ doStuff ret n = do
 $(generateFunction [funcDefn|someFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
 someFunc ret n m = do
   x <- allocMem (type_SomeStructType type_Int type_Int) (intLit 3)
-  ((deref x) %. fieldAA) =: (intLit 5)
+  ((lderef x) $. fieldAA) =: (intLit 5)
   n' <- intLit 1
-  ((x %@ n') %. fieldAA) =: (intLit 4)
+  ((x $@ n') $. fieldAA) =: (intLit 4)
   ret $ fromIntType m
 
 

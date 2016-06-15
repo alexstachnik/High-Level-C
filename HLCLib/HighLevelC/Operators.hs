@@ -87,18 +87,39 @@ hlcSHR = hlcBinOp HLCSHR
 (%>=) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
 (%>=) = hlcGEQ
 
-(%.) :: StructFieldClass p structType fieldName fieldType =>
-        TypedLHS structType -> Proxy fieldName -> TypedLHS fieldType
-(%.) = TypedLHSElement
 
-deref :: TypedLHS (HLCPtr b a) -> TypedLHS a
-deref = TypedLHSDeref
+(%.) :: forall structType fieldName fieldType p.
+        (StructFieldClass p structType fieldName fieldType, Typeable fieldName) =>
+        HLC (TypedExpr structType) ->
+        Proxy fieldName ->
+        HLC (TypedExpr fieldType)
+(%.) = readElt
+
+rderef :: HLC (TypedExpr (HLCPtr b a)) -> HLC (TypedExpr a)
+rderef = fmap (TypedExpr . LHSExpr . untypeLHS . TypedLHSDeref . TypedLHSPtr)
 
 (%@) :: (HLCBasicIntType c) =>
+        HLC (TypedExpr (HLCPtr b a)) ->
+        HLC (TypedExpr c) ->
+        HLC (TypedExpr a)
+(%@) ptr n = do
+  ptr' <- ptr
+  n' <- n
+  return $ TypedExpr $ LHSExpr $ untypeLHS $
+    TypedLHSDerefPlusOffset (TypedLHSPtr ptr') n'
+
+($.) :: StructFieldClass p structType fieldName fieldType =>
+        TypedLHS structType -> Proxy fieldName -> TypedLHS fieldType
+($.) = TypedLHSElement
+
+lderef :: TypedLHS (HLCPtr b a) -> TypedLHS a
+lderef = TypedLHSDeref
+
+($@) :: (HLCBasicIntType c) =>
            TypedLHS (HLCPtr b a) ->
            TypedExpr c ->
            TypedLHS a
-(%@) = TypedLHSDerefPlusOffset
+($@) = TypedLHSDerefPlusOffset
 
 hlcSigNum :: forall a. (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a)
 hlcSigNum val = do
