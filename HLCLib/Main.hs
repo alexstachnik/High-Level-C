@@ -104,8 +104,8 @@ someFunc ret n m = do
 type HLCIntT = HLC (TypedExpr HLCInt)
 
 fff = do
-  _ <- call_someFunc (return undefined :: Type_Int) (return undefined :: Type_Int)
-  _ <- call_doStuff (return undefined :: Type_Int)
+  _ <- call_someFunc (withType :: Type_Int) (withType :: Type_Int)
+  _ <- call_doStuff (withType :: Type_Int)
   return ()
 
 main :: IO ()

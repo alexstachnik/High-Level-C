@@ -148,3 +148,6 @@ callFunc proxyName args f = do
   symb <- declareFunc proxyName (map fst args) f
   return $ TypedExpr $ FunctionCall (expVar symb) (map snd args)
   where name = getFuncName proxyName
+
+withType :: (HLCTypeable a) => HLC a
+withType = return undefined
