@@ -89,7 +89,7 @@ doStuff :: (HLC (TypedExpr HLCInt) -> HLC b) -> HLC (TypedExpr HLCInt) -> HLC b
 doStuff ret n = do
   galois <- makeLocalStruct type_GaloisField
   m <- makePrimVar type_Int
-  result <- add (lhsExpr galois) n (lhsVar m)
+  result <- add (lhsExpr galois) n (lhsExpr m)
   ret (return result)
 
 $(generateFunction [funcDefn|someFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])

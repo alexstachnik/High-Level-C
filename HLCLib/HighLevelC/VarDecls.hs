@@ -48,7 +48,7 @@ allocMem _ len = HLC $ do
 
 makePrimVar :: forall a. (HLCPrimType a) =>
                Proxy a ->
-               HLC (TypedLHS (TypedVar a))
+               HLC (TypedLHS a)
 makePrimVar _ = HLC $ do
   symb <- makeHLCSymbol_ "primVar"
   let ty = fromTW (hlcType :: TW a)
