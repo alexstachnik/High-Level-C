@@ -61,6 +61,31 @@ hlcSHR = hlcBinOp HLCSHR
 
 (%%) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
 (%%) = hlcMod
+(%/) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%/) = hlcDiv
+(%&&) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%&&) = hlcLAnd
+(%||) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%||) = hlcLOr
+(%&) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%&) = hlcBitAnd
+(%|) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%|) = hlcBitOr
+(%^) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%^) = hlcBitXor
+(%==) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%==) = hlcEqual
+(%*==) :: (HLCTypeable a, HLCTypeable b) =>
+          HLC (TypedExpr (HLCPtr t a)) -> HLC (TypedExpr (HLCPtr t' b)) -> HLC (TypedExpr HLCBool)
+(%*==) = ptrEqual
+(%<) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%<) = hlcLT
+(%>) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%>) = hlcGT
+(%<=) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%<=) = hlcLEQ
+(%>=) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%>=) = hlcGEQ
 
 hlcSigNum :: forall a. (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a)
 hlcSigNum val = do

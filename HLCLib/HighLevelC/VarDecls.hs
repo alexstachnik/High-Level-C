@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -29,21 +30,10 @@ makeWeakRef = fmap (TypedExpr . fromTypedExpr)
 mallocExpr :: (HLCBasicIntType b) => TypedExpr b -> HLCExpr
 mallocExpr len = FunctionCall (LHSExpr $ LHSVar $ fromExtFunction malloc) [fromTypedExpr len]
 
---maybeDeclareStruct :: forall a. (HLCTypeable a) =>
---                      Proxy a -> HLC_ ()
---maybeDeclareStruct _ =
---  case eqT :: Maybe (forall p structType. (Struct p structType) => structType :~: a) of
---    (Just (Refl))  ->
---      innerHLC $ declareStruct (Proxy :: Proxy a) >>
---      return ()
---    Nothing ->
---      return ()
-  
-
 allocMem :: forall a b p. (Struct p a,HLCBasicIntType b,HLCNumType b) =>
-            SafeName -> HLC (TypedExpr b) -> HLC (TypedVar (HLCUniquePtr a))
-allocMem name len = HLC $ do
-  symb <- makeHLCSymbol_ name
+            HLC (TypedExpr b) -> HLC (TypedVar (HLCUniquePtr a))
+allocMem len = HLC $ do
+  symb <- makeHLCSymbol_ "ptr"
   numBytes <- innerHLC $ hlcMul (hlcSizeof (Proxy :: Proxy a)) len
   innerHLC $ declareStruct (Proxy :: Proxy a)
   let ptrTy = fromTW (hlcType :: TW (HLCUniquePtr a))
@@ -56,19 +46,17 @@ allocMem name len = HLC $ do
   return $ TypedVar symb
 
 makePrimVar :: forall a. (HLCPrimType a) =>
-               SafeName ->
                HLC (TypedVar a)
-makePrimVar name = HLC $ do
-  symb <- makeHLCSymbol_ name
+makePrimVar = HLC $ do
+  symb <- makeHLCSymbol_ "primVar"
   let ty = fromTW (hlcType :: TW a)
   writeVar $ Variable symb ty Nothing emptyBlock emptyBlock
   return $ TypedVar symb
 
 makeLocalStruct :: forall structType p. (Struct p structType) =>
-                   SafeName ->
                    HLC (TypedVar structType)
-makeLocalStruct name = HLC $ do
-  symb <- makeHLCSymbol_ name
+makeLocalStruct = HLC $ do
+  symb <- makeHLCSymbol_ "stVar"
   consCont <- makeHLCSymbol_ $ makeSafeName "conscont"
   destCont <- makeHLCSymbol_ $ makeSafeName "destcont"
   innerHLC $ declareStruct (Proxy :: Proxy structType)

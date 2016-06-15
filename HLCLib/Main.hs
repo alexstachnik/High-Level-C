@@ -81,22 +81,21 @@ galoisDest _ cxt = return cxt
 
 instance Group Type_GaloisField Type_Int where
   add field lhs rhs = do
-    (lhs + rhs) %% (field .- order)
-
+    (lhs + rhs) %% (field %- order)
 
 $(generateFunction [funcDefn|doStuff HLCInt -> HLCInt|])
 
 doStuff :: (HLC (TypedExpr HLCInt) -> HLC b) -> HLC (TypedExpr HLCInt) -> HLC b
 doStuff ret n = do
-  galois :: TypedVar GaloisField <- makeLocalStruct "GF"
-  m :: TypedVar HLCInt <- makePrimVar "m"
+  galois :: TypedVar GaloisField <- makeLocalStruct
+  m :: TypedVar HLCInt <- makePrimVar
   result <- add (return $ lhsExpr $ TypedLHSVar galois) n (return $ lhsExpr $ TypedLHSVar m)
   ret (return result)
 
 
 $(generateFunction [funcDefn|someFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
 someFunc ret n m = do
-  x :: TypedVar (HLCUniquePtr (SomeStructType HLCInt HLCInt)) <- allocMem "x" (intLit 3)
+  x :: TypedVar (HLCUniquePtr (SomeStructType HLCInt HLCInt)) <- allocMem (intLit 3)
   (TypedLHSElement (TypedLHSDeref (TypedLHSVar x)) fieldAA) =: (intLit 5)
   n' <- intLit 1
   m' <- m
@@ -107,8 +106,8 @@ someFunc ret n m = do
 type HLCIntT = HLC (TypedExpr HLCInt)
 
 fff = do
-  _ <- call_someFunc (return undefined :: HLC (TypedExpr HLCInt)) (return undefined)
-  _ <- call_doStuff (return undefined :: HLC (TypedExpr HLCInt))
+  _ <- call_someFunc (return undefined :: Type_Int) (return undefined :: Type_Int)
+  _ <- call_doStuff (return undefined :: Type_Int)
   return ()
 
 main :: IO ()

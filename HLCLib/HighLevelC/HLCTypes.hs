@@ -321,12 +321,12 @@ readElt struct _ = do
   return $ TypedExpr $ AccessPart (fromTypedExpr struct') $
     getFieldName (Proxy :: Proxy fieldName)
 
-(.-) :: forall structType fieldName fieldType p.
+(%-) :: forall structType fieldName fieldType p.
         (StructFieldClass p structType fieldName fieldType, Typeable fieldName) =>
         HLC (TypedExpr structType) ->
         Proxy fieldName ->
         HLC (TypedExpr fieldType)
-(.-) = readElt
+(%-) = readElt
 
 expVar :: HLCSymbol -> HLCExpr
 expVar = LHSExpr . LHSVar
