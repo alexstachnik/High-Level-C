@@ -1,4 +1,6 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -36,7 +38,7 @@ allocMem :: forall a b p. (Struct p a,HLCBasicIntType b,HLCNumType b) =>
 allocMem _ len = HLC $ do
   symb <- makeHLCSymbol_ "ptr"
   numBytes <- innerHLC $ hlcMul (hlcSizeof (Proxy :: Proxy a)) len
-  innerHLC $ declareStruct (Proxy :: Proxy a)
+  _ <- innerHLC $ declareStruct (Proxy :: Proxy a)
   let ptrTy = fromTW (hlcType :: TW (HLCUniquePtr a))
       consBody = AssignmentStmt (LHSVar symb) (mallocExpr numBytes)
       destBody = ExpStmt $
@@ -62,7 +64,7 @@ makeLocalStruct _ = HLC $ do
   symb <- makeHLCSymbol_ "stVar"
   consCont <- makeHLCSymbol_ $ makeSafeName "conscont"
   destCont <- makeHLCSymbol_ $ makeSafeName "destcont"
-  innerHLC $ declareStruct (Proxy :: Proxy structType)
+  _ <- innerHLC $ declareStruct (Proxy :: Proxy structType)
   let ty = fromTW (hlcType :: TW structType)
       this = TypedVar symb
   cons <- grabStructBlock $ innerHLC $
@@ -90,3 +92,6 @@ assignVar lhs rhs = do
         HLC (TypedExpr a) ->
         HLC ()
 (=:) = assignVar
+
+
+

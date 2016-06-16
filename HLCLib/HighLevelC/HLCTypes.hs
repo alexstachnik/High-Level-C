@@ -287,6 +287,15 @@ data VarArg = forall a . ConsArg (TypedExpr a) VarArg
 data ExtFunction a = ExtFunction {fromExtFunction :: HLCSymbol}
                    | VarExtFunction HLCSymbol
 
+class (HLCTypeable b) => RHSExpression a b | a -> b where
+  rhsExpr :: a -> HLC (TypedExpr b)
+
+instance (HLCTypeable a) => RHSExpression (HLC (TypedExpr a)) a where
+  rhsExpr = id
+
+instance (HLCTypeable a) => RHSExpression (TypedLHS a) a where
+  rhsExpr = lhsExpr
+
 untypeLHS :: TypedLHS a -> UntypedLHS
 untypeLHS (TypedLHSVar x) = LHSVar (fromTypedVar x)
 untypeLHS (TypedLHSPtr x) = LHSPtr (fromTypedExpr x)

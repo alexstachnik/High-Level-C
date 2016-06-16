@@ -5,6 +5,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -44,6 +46,7 @@ import HighLevelC.BasicTypes
 import HighLevelC.PrimFunctions
 import HighLevelC.VarDecls
 import HighLevelC.Operators
+import HighLevelC.TypeSynonyms
 import IntermediateLang.ILTypes
 import Printer.Printer
 import Printer.PostProcess
@@ -67,7 +70,11 @@ dest2 _ cxt = do
   return cxt
 
 class Group s elt | elt -> s where
-  add :: s -> elt -> elt -> elt
+  add' :: s -> elt -> elt -> elt
+
+add :: (ClassWrap2 Group s elt) =>
+       FuncTyWrap3 s elt elt elt
+add = funcWrap3 add'
 
 $(generateStructDesc [structDefn|GaloisField => {order :: HLCInt} where
                                 isPassable = True
@@ -80,16 +87,20 @@ galoisCons _ makeStructField cxt = do
 galoisDest _ cxt = return cxt
 
 instance Group Type_GaloisField Type_Int where
-  add field lhs rhs = do
-    (lhs + rhs) %% (field %. order)
+  add' field lhs rhs = (lhs %+ rhs) %% (field %. order)
 
 $(generateFunction [funcDefn|doStuff HLCInt -> HLCInt|])
+
+
 
 doStuff :: (HLC (TypedExpr HLCInt) -> HLC b) -> HLC (TypedExpr HLCInt) -> HLC b
 doStuff ret n = do
   galois <- makeLocalStruct type_GaloisField
   m <- makePrimVar type_Int
-  result <- add (lhsExpr galois) n (lhsExpr m)
+  m =: (intLit 3)
+  m =: (m %+ intLit 2)
+  _ <- add galois n n
+  result <- add galois n m
   ret (return result)
 
 $(generateFunction [funcDefn|someFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
@@ -97,6 +108,9 @@ someFunc ret n m = do
   x <- allocMem (type_SomeStructType type_Int type_Int) (intLit 3)
   ((lderef x) $. fieldAA) =: (intLit 5)
   n' <- intLit 1
+  temp <- makePrimVar type_Int
+  temp =: (intLit 17)
+  exprStmt $ call_doStuff temp
   ((x $@ n') $. fieldAA) =: (intLit 4)
   ret $ fromIntType m
 

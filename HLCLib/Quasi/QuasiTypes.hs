@@ -58,14 +58,20 @@ generateFunction' funcName funcCallName (Function {..}) =
      [Clause [WildP, (VarP $ mkName "retArg")]
       (NormalB (AppE argWrapConsE (AppE (VarE funcBody) (VarE $ mkName "retArg"))))
       []]],
+    -- FIXME: Take a RHSExpression instead
     sigD funcCallName
-    (forallT funcTyParams argAndPassConstraints funcCallType),
+    (forallT funcTyParams argAndPassConstraints appliedFuncTyWrap),
     funD funcCallName
-    [clause [] (normalB (appE callExpr (sigE [e|Proxy|]
-                                        [t| Proxy $appliedFunc |]))) []]
+    [clause [] (normalB (appE (varE funcWrap)
+                         (appE callExpr (sigE [e|Proxy|]
+                                         [t| Proxy $appliedFunc |])))) []]
     ])
 
   where
+    appliedFuncTyWrap = return $ foldl AppT (ConT funcTyWrap) (funcArgTypes ++ [retType])
+    funcTyWrap = mkName ("FuncTyWrap" ++ (show $ length funcArgTypes))
+    funcWrap = mkName ("funcWrap" ++ (show $ length funcArgTypes))
+    
     callExpr = return $ VarE $ mkName ("call" ++ (show $ length funcArgTypes))
     
     funcCallType :: Q Type

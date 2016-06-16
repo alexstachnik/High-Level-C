@@ -68,9 +68,9 @@ reserved = P.reserved lexer
 
 forallParser :: Parsec String u [TyVarBndr]
 forallParser = do
-  symbol "forall"
+  _ <- symbol "forall"
   vars <- many identifier
-  dot
+  _ <- dot
   return $ map (PlainTV . mkName) vars
 
 someTypeParser :: Parsec String u Type

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -11,80 +12,115 @@ import Data.Typeable
 hlcSizeof :: forall a b. (HLCTypeable a,HLCBasicIntType b) => Proxy a -> HLC (TypedExpr b)
 hlcSizeof _ = return $ TypedExpr $ SizeOf $ fromTW (hlcType :: TW a)
 
-hlcBinOp :: (HLCNumType a) =>
-            HLCBinOp ->
-            HLC (TypedExpr a) ->
-            HLC (TypedExpr a) ->
-            HLC (TypedExpr a)
+hlcBinOp :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+            HLCBinOp -> a -> b -> HLC (TypedExpr t)
 hlcBinOp binOp lhs rhs = do
-  lhs' <- lhs
-  rhs' <- rhs
+  lhs' <- rhsExpr lhs
+  rhs' <- rhsExpr rhs
   return $ TypedExpr $ ExprBinOp binOp (fromTypedExpr lhs') (fromTypedExpr rhs')
 
-hlcAdd :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcAdd :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcAdd = hlcBinOp HLCPlus
-hlcSub :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcSub :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcSub = hlcBinOp HLCMinus
-hlcMul :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcMul :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcMul = hlcBinOp HLCTimes
-hlcDiv :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcDiv :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcDiv = hlcBinOp HLCDivide
-hlcMod :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcMod :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcMod = hlcBinOp HLCRem
 
-hlcLAnd :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcLAnd :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+           a -> b -> HLC (TypedExpr t)
 hlcLAnd = hlcBinOp HLCLAnd
-hlcLOr :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcLOr :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcLOr = hlcBinOp HLCLOr
-hlcBitAnd :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcBitAnd :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+             a -> b -> HLC (TypedExpr t)
 hlcBitAnd = hlcBinOp HLCBitAnd
-hlcBitOr :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcBitOr :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+            a -> b -> HLC (TypedExpr t)
 hlcBitOr = hlcBinOp HLCBitOr
-hlcBitXor :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcBitXor :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+             a -> b -> HLC (TypedExpr t)
 hlcBitXor = hlcBinOp HLCBitXor
 
-hlcEqual :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcEqual :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+            a -> b -> HLC (TypedExpr t)
 hlcEqual = hlcBinOp HLCEqual
 
-hlcLT :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcLT :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+         a -> b -> HLC (TypedExpr t)
 hlcLT = hlcBinOp HLCLT
-hlcGT :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcGT :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+         a -> b -> HLC (TypedExpr t)
 hlcGT = hlcBinOp HLCGT
-hlcLEQ :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcLEQ :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcLEQ = hlcBinOp HLCLTEQ
-hlcGEQ :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcGEQ :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcGEQ = hlcBinOp HLCGTEQ
-hlcSHL :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcSHL :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcSHL = hlcBinOp HLCSHL
-hlcSHR :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcSHR :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+          a -> b -> HLC (TypedExpr t)
 hlcSHR = hlcBinOp HLCSHR
 
-(%%) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
-(%%) = hlcMod
-(%/) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%+) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
+m %+ n = hlcAdd m n
+(%-) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
+m %- n = hlcSub m n
+(%*) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
+m %* n = hlcMul m n
+(%/) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
 (%/) = hlcDiv
-(%&&) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%%) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
+(%%) = hlcMod
+(%&&) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+         a -> b -> HLC (TypedExpr t)
 (%&&) = hlcLAnd
-(%||) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%||) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+         a -> b -> HLC (TypedExpr t)
 (%||) = hlcLOr
-(%&) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%&) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
 (%&) = hlcBitAnd
-(%|) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%|) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
 (%|) = hlcBitOr
-(%^) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%^) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
 (%^) = hlcBitXor
-(%==) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%==) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+         a -> b -> HLC (TypedExpr t)
 (%==) = hlcEqual
-(%*==) :: (HLCTypeable a, HLCTypeable b) =>
-          HLC (TypedExpr (HLCPtr t a)) -> HLC (TypedExpr (HLCPtr t' b)) -> HLC (TypedExpr HLCBool)
+(%*==) :: (RHSExpression (HLCPtr p a) t, RHSExpression (HLCPtr p' b) t) =>
+          (HLCPtr p a) -> (HLCPtr p' b) -> HLC (TypedExpr HLCBool)
 (%*==) = ptrEqual
-(%<) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%<) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
 (%<) = hlcLT
-(%>) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%>) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+        a -> b -> HLC (TypedExpr t)
 (%>) = hlcGT
-(%<=) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%<=) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+         a -> b -> HLC (TypedExpr t)
 (%<=) = hlcLEQ
-(%>=) :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a) -> HLC (TypedExpr a)
+(%>=) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+         a -> b -> HLC (TypedExpr t)
 (%>=) = hlcGEQ
 
 
@@ -146,11 +182,11 @@ hlcAbs val = do
   return $ TypedExpr $
     HLCTernary (fromTypedExpr cond) (fromTypedExpr thenExpr) (fromTypedExpr elseExpr)
 
-ptrEqual :: (HLCTypeable a, HLCTypeable b) =>
-            HLC (TypedExpr (HLCPtr t a)) -> HLC (TypedExpr (HLCPtr t' b)) -> HLC (TypedExpr HLCBool)
+ptrEqual :: (RHSExpression (HLCPtr p a) t, RHSExpression (HLCPtr p' b) t) =>
+            (HLCPtr p a) -> (HLCPtr p' b) -> HLC (TypedExpr HLCBool)
 ptrEqual lhs rhs = do
-  lhs' <- lhs
-  rhs' <- rhs
+  lhs' <- rhsExpr lhs
+  rhs' <- rhsExpr rhs
   return $ TypedExpr $ ExprBinOp HLCEqual (fromTypedExpr lhs') (fromTypedExpr rhs')
 
 addrOf :: HLC (TypedVar a) -> HLC (TypedExpr (HLCPtr WeakPtr a))
@@ -158,11 +194,3 @@ addrOf var = do
   var' <- var
   lhsExpr $ TypedLHSAddrOf $ TypedLHSVar var'
 
-instance (HLCNumType a) => Num (HLC (TypedExpr a)) where
-  m + n = hlcAdd m n
-  m - n = hlcSub m n
-  m * n = hlcMul m n
-  negate = hlcNegate
-  abs = hlcAbs
-  signum = hlcSigNum
-  fromInteger = hlcFromInteger
