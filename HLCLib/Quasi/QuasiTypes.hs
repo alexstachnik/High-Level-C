@@ -58,7 +58,6 @@ generateFunction' funcName funcCallName (Function {..}) =
      [Clause [WildP, (VarP $ mkName "retArg")]
       (NormalB (AppE argWrapConsE (AppE (VarE funcBody) (VarE $ mkName "retArg"))))
       []]],
-    -- FIXME: Take a RHSExpression instead
     sigD funcCallName
     (forallT funcTyParams argAndPassConstraints appliedFuncTyWrap),
     funD funcCallName
