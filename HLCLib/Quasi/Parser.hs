@@ -9,6 +9,7 @@ import Quasi.TypeParser
 
 import Language.Haskell.TH
 import Data.Maybe
+import Data.List
 
 import Data.Typeable
 import HighLevelC.HLCTypes
@@ -48,7 +49,7 @@ funcParser = do
   body <- fmap mkName identifier
   funcTypeStr <- many anyChar
   let funcType = parseSomeType funcTypeStr
-      tyParams = getTyParams funcType
+      tyParams = nub $ getTyParams funcType
       constraints = getConstraints funcType
       retType = getRetType funcType
       argTypes = init $ getFuncComponents funcType

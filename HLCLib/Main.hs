@@ -55,8 +55,16 @@ import Language.Haskell.TH
 import Language.Haskell.TH as TH
 
 
-$(generateStructDesc [structDefn|SomeStructType forall a1 a2.  =>
-                                {fieldAA :: a1,fieldBB :: a2,fieldCC :: HLCInt} where
+$(generateFunction [funcDefn|testBinOp (HLCNumType a1, HLCBasicIntType a1) => a1 -> a1 -> HLCInt|])
+
+testBinOp ret a b = do
+  c <- makePrimVar type_Int
+  c =: fromIntType (a %+ b)
+  c =: c %+ intLit 10
+  ret (lhsExpr c)
+
+$(generateStructDesc [structDefn|SomeStructType forall a1.  =>
+                                {fieldAA :: a1,fieldBB :: a1,fieldCC :: HLCInt} where
                                 isPassable = True
                                 constructor = cons2
                                 destructor = dest2|])
@@ -91,8 +99,6 @@ instance Group Type_GaloisField Type_Int where
 
 $(generateFunction [funcDefn|doStuff HLCInt -> HLCInt|])
 
-
-
 doStuff :: (HLC (TypedExpr HLCInt) -> HLC b) -> HLC (TypedExpr HLCInt) -> HLC b
 doStuff ret n = do
   galois <- makeLocalStruct type_GaloisField
@@ -105,7 +111,7 @@ doStuff ret n = do
 
 $(generateFunction [funcDefn|someFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
 someFunc ret n m = do
-  x <- allocMem (type_SomeStructType type_Int type_Int) (intLit 3)
+  x <- allocMem (type_SomeStructType type_Int) (intLit 3)
   lderef x $. fieldAA =: intLit 5
   n' <- intLit 1
   temp <- makePrimVar type_Int
@@ -120,6 +126,7 @@ type HLCIntT = HLC (TypedExpr HLCInt)
 fff = do
   _ <- call_someFunc (withType :: Type_Int) (withType :: Type_Int)
   _ <- call_doStuff (withType :: Type_Int)
+  _ <- call_testBinOp (withType :: Type_Char) (withType :: Type_Char)
   return ()
 
 main :: IO ()
