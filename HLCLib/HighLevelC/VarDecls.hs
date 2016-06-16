@@ -26,18 +26,22 @@ import HighLevelC.Operators
 
 import Language.Haskell.TH
 
-makeWeakRef :: HLC (TypedExpr (HLCPtr p a)) -> HLC (TypedExpr (HLCWeakPtr a))
-makeWeakRef = fmap (TypedExpr . fromTypedExpr)
+makeWeakRef :: (RHSExpression c (HLCPtr p a)) =>
+               c -> HLC (TypedExpr (HLCWeakPtr a))
+makeWeakRef = fmap (TypedExpr . fromTypedExpr) . rhsExpr
 
 mallocExpr :: (HLCBasicIntType b) => TypedExpr b -> HLCExpr
 mallocExpr len = FunctionCall (LHSExpr $ LHSVar $ fromExtFunction malloc) [fromTypedExpr len]
 
-allocMem :: forall a b p. (Struct p a,HLCBasicIntType b,HLCNumType b) =>
+allocMem :: forall a b c p.
+            (Struct p a,
+             RHSExpression c b,
+             HLCBasicIntType b,HLCNumType b) =>
             Proxy a ->
-            HLC (TypedExpr b) -> HLC (TypedLHS (HLCUniquePtr a))
+            c -> HLC (TypedLHS (HLCUniquePtr a))
 allocMem _ len = HLC $ do
   symb <- makeHLCSymbol_ "ptr"
-  numBytes <- innerHLC $ hlcMul (hlcSizeof (Proxy :: Proxy a)) len
+  numBytes <- innerHLC $ hlcMul (hlcSizeof (Proxy :: Proxy a)) (rhsExpr len)
   _ <- innerHLC $ declareStruct (Proxy :: Proxy a)
   let ptrTy = fromTW (hlcType :: TW (HLCUniquePtr a))
       consBody = AssignmentStmt (LHSVar symb) (mallocExpr numBytes)
@@ -79,20 +83,20 @@ makeLocalStruct _ = HLC $ do
   writeVar $ Variable symb ty Nothing cons dest
   return $ TypedLHSVar this
 
-assignVar :: forall a. (HLCTypeable a, Passability a ~ IsPassable) =>
-             TypedLHS a ->
-             HLC (TypedExpr a) ->
-             HLC ()
+assignVar :: forall a b.
+             (HLCTypeable a, Passability a ~ IsPassable,
+              RHSExpression b a) =>
+             TypedLHS a -> b -> HLC ()
 assignVar lhs rhs = do
-  rhs' <- rhs
+  rhs' <- rhsExpr rhs
   HLC $ writeStmt $ AssignmentStmt (untypeLHS lhs) (fromTypedExpr rhs')
 
 infixr 0 =:
 
-(=:) :: forall a. (HLCTypeable a, Passability a ~ IsPassable) =>
-        TypedLHS a ->
-        HLC (TypedExpr a) ->
-        HLC ()
+(=:) :: forall a b.
+        (HLCTypeable a, Passability a ~ IsPassable,
+         RHSExpression b a) =>
+        TypedLHS a -> b -> HLC ()
 (=:) = assignVar
 
 
