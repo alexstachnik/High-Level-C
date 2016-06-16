@@ -97,8 +97,8 @@ doStuff :: (HLC (TypedExpr HLCInt) -> HLC b) -> HLC (TypedExpr HLCInt) -> HLC b
 doStuff ret n = do
   galois <- makeLocalStruct type_GaloisField
   m <- makePrimVar type_Int
-  m =: (intLit 3)
-  m =: (m %+ intLit 2)
+  m =: intLit 3
+  m =: m %+ intLit 2
   _ <- add galois n n
   result <- add galois n m
   ret (return result)
@@ -106,12 +106,12 @@ doStuff ret n = do
 $(generateFunction [funcDefn|someFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
 someFunc ret n m = do
   x <- allocMem (type_SomeStructType type_Int type_Int) (intLit 3)
-  ((lderef x) $. fieldAA) =: (intLit 5)
+  lderef x $. fieldAA =: intLit 5
   n' <- intLit 1
   temp <- makePrimVar type_Int
-  temp =: (intLit 17)
+  temp =: intLit 17
   exprStmt $ call_doStuff temp
-  ((x $@ n') $. fieldAA) =: (intLit 4)
+  x $@ n' $. fieldAA =: intLit 4
   ret $ fromIntType m
 
 

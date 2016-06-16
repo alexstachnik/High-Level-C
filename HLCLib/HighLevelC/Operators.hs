@@ -123,6 +123,7 @@ m %* n = hlcMul m n
          a -> b -> HLC (TypedExpr t)
 (%>=) = hlcGEQ
 
+infixl 9 %.
 
 (%.) :: forall structType fieldName fieldType p.
         (StructFieldClass p structType fieldName fieldType, Typeable fieldName) =>
@@ -134,6 +135,8 @@ m %* n = hlcMul m n
 rderef :: HLC (TypedExpr (HLCPtr b a)) -> HLC (TypedExpr a)
 rderef = fmap (TypedExpr . LHSExpr . untypeLHS . TypedLHSDeref . TypedLHSPtr)
 
+infixl 9 %@
+
 (%@) :: (HLCBasicIntType c) =>
         HLC (TypedExpr (HLCPtr b a)) ->
         HLC (TypedExpr c) ->
@@ -144,12 +147,16 @@ rderef = fmap (TypedExpr . LHSExpr . untypeLHS . TypedLHSDeref . TypedLHSPtr)
   return $ TypedExpr $ LHSExpr $ untypeLHS $
     TypedLHSDerefPlusOffset (TypedLHSPtr ptr') n'
 
+infixl 9 $.
+
 ($.) :: StructFieldClass p structType fieldName fieldType =>
         TypedLHS structType -> Proxy fieldName -> TypedLHS fieldType
 ($.) = TypedLHSElement
 
 lderef :: TypedLHS (HLCPtr b a) -> TypedLHS a
 lderef = TypedLHSDeref
+
+infixl 9 $@
 
 ($@) :: (HLCBasicIntType c) =>
            TypedLHS (HLCPtr b a) ->
