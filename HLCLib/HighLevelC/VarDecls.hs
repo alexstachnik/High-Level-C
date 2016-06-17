@@ -82,21 +82,6 @@ makeLocalStruct _ = HLC $ do
   writeVar $ Variable symb ty Nothing cons dest
   return $ TypedLHSVar this
 
-assignVar :: forall a b.
-             (HLCTypeable a, Passability a ~ IsPassable,
-              RHSExpression b a) =>
-             TypedLHS a -> b -> HLC ()
-assignVar lhs rhs = do
-  rhs' <- rhsExpr rhs
-  HLC $ writeStmt $ AssignmentStmt (untypeLHS lhs) (fromTypedExpr rhs')
-
-infixr 0 =:
-
-(=:) :: forall a b.
-        (HLCTypeable a, Passability a ~ IsPassable,
-         RHSExpression b a) =>
-        TypedLHS a -> b -> HLC ()
-(=:) = assignVar
 
 
 

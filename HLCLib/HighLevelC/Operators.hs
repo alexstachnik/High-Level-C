@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -6,6 +7,7 @@ module HighLevelC.Operators where
 
 import HighLevelC.HLCTypes
 import HighLevelC.BasicTypes
+import HighLevelC.CWriter
 
 import Data.Typeable
 
@@ -247,3 +249,19 @@ addrOf var = do
   var' <- var
   lhsExpr $ TypedLHSAddrOf $ TypedLHSVar var'
 
+
+assignVar :: forall a b.
+             (HLCTypeable a, Passability a ~ IsPassable,
+              RHSExpression b a) =>
+             TypedLHS a -> b -> HLC ()
+assignVar lhs rhs = do
+  rhs' <- rhsExpr rhs
+  HLC $ writeStmt $ AssignmentStmt (untypeLHS lhs) (fromTypedExpr rhs')
+
+infixr 0 =:
+
+(=:) :: forall a b.
+        (HLCTypeable a, Passability a ~ IsPassable,
+         RHSExpression b a) =>
+        TypedLHS a -> b -> HLC ()
+(=:) = assignVar
