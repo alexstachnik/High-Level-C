@@ -5,11 +5,13 @@
 module HighLevelC.CWriter where
 
 import qualified Data.Sequence as Sq
+import qualified Data.Set as S
 
 import Debug.Trace
 
 import Data.Sequence((><),(|>))
 import Data.Foldable(toList)
+
 
 import Language.C.Syntax.AST
 import Language.C.Data.Node
@@ -67,3 +69,6 @@ writeFuncProto proto = tell $ mempty {functionProtos = Sq.singleton proto}
 
 writeStructVarDecl :: (MonadWriter CWriter m) => StructField -> m ()
 writeStructVarDecl field = tell $ mempty {structVarDecls = Sq.singleton field}
+
+writePreproDirs :: (MonadWriter CWriter m) => PreprocessorDirective -> m ()
+writePreproDirs dir = tell $ mempty {preproDirs = S.singleton dir}

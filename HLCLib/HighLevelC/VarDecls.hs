@@ -30,9 +30,6 @@ makeWeakRef :: (RHSExpression c (HLCPtr p a)) =>
                c -> HLC (TypedExpr (HLCWeakPtr a))
 makeWeakRef = fmap (TypedExpr . fromTypedExpr) . rhsExpr
 
-mallocExpr :: (HLCBasicIntType b) => TypedExpr b -> HLCExpr
-mallocExpr len = FunctionCall (LHSExpr $ LHSVar $ fromExtFunction malloc) [fromTypedExpr len]
-
 allocMem :: forall a b c p.
             (Struct p a,
              RHSExpression c b,
@@ -42,21 +39,23 @@ allocMem :: forall a b c p.
 allocMem _ len = HLC $ do
   symb <- makeHLCSymbol_ "ptr"
   numBytes <- innerHLC $ hlcMul (hlcSizeof (Proxy :: Proxy a)) (rhsExpr len)
+  mallocExpr <- callMalloc numBytes
   _ <- innerHLC $ declareStruct (Proxy :: Proxy a)
   let ptrTy = fromTW (hlcType :: TW (HLCUniquePtr a))
-      consBody = AssignmentStmt (LHSVar symb) (mallocExpr numBytes)
-      destBody = ExpStmt $
-        FunctionCall (LHSExpr $ LHSVar $ fromExtFunction freeMem) [LHSExpr $ LHSVar symb]
-      cons = HLCBlock [] (StatementList [consBody]) NextLine
+      ptr = TypedLHSVar $ TypedVar symb
+      consBody = AssignmentStmt (LHSVar symb) mallocExpr
+  destBody <- fmap ExpStmt ((innerHLC $ lhsExpr ptr) >>= callFree)
+  let cons = HLCBlock [] (StatementList [consBody]) NextLine
       dest = HLCBlock [] (StatementList [destBody]) NextLine
   writeVar $ Variable symb ptrTy Nothing cons dest
-  return $ TypedLHSVar $ TypedVar symb
+  return ptr
 
 makePrimVar :: forall a. (HLCPrimType a) =>
                Proxy a ->
                HLC (TypedLHS a)
 makePrimVar _ = HLC $ do
   symb <- makeHLCSymbol_ "primVar"
+  writePreproDirs (PreprocessorDirective "#include <stdint.h>")
   let ty = fromTW (hlcType :: TW a)
   writeVar $ Variable symb ty Nothing emptyBlock emptyBlock
   return $ TypedLHSVar $ TypedVar symb

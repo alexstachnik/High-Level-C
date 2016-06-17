@@ -128,6 +128,8 @@ pqp ret n m = do
   temp <- makePrimVar type_Int
   temp =: intLit 17
   exprStmt $ call_doStuff temp
+  str <- stringLit "Test %d\n"
+  callPrintf str (ConsArg n' NilArg)
   x $@ n' $. fieldAA =: intLit 4
   ret $ fromIntType m
 
@@ -142,5 +144,5 @@ fff = do
   return ()
 
 main :: IO ()
-main = print $ pretty $ printCWriter $ processSymbols $ runOuterHLC fff
+main = print $ printWholeTU $ runOuterHLC fff
 

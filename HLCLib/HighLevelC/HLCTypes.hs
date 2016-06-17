@@ -54,13 +54,17 @@ data StructField = StructField {fieldName :: SafeName,
                                 fieldType :: ILType}
                    deriving (Eq,Ord,Show,Data,Typeable)
 
+newtype PreprocessorDirective = PreprocessorDirective String
+                              deriving (Eq,Ord,Show,Data,Typeable)
+
 data CWriter = CWriter {functionProtos :: Sq.Seq FunctionProto,
                         structProtos :: Sq.Seq StructProto,
                         structDefs :: Sq.Seq StructDef,
                         funcDefs :: Sq.Seq FunctionDef,
                         stmts :: Sq.Seq HLCStatement,
                         varDecls :: Sq.Seq Variable,
-                        structVarDecls :: Sq.Seq StructField}
+                        structVarDecls :: Sq.Seq StructField,
+                        preproDirs :: S.Set PreprocessorDirective}
              deriving (Eq,Ord,Show,Data,Typeable)
 
 data CodeState = CodeState {funcInstances :: M.Map FuncName (HLCSymbol,Variable),
@@ -90,14 +94,16 @@ instance Monoid CWriter where
                     funcDefs = Sq.empty,
                     stmts = Sq.empty,
                     varDecls = Sq.empty,
-                    structVarDecls = Sq.empty}
+                    structVarDecls = Sq.empty,
+                    preproDirs = S.empty}
   mappend a b = CWriter {functionProtos = functionProtos a >< functionProtos b,
                          structProtos = structProtos a >< structProtos b,
                          structDefs = structDefs a >< structDefs b,
                          funcDefs = funcDefs a >< funcDefs b,
                          stmts = stmts a >< stmts b,
                          varDecls = varDecls a >< varDecls b,
-                         structVarDecls = structVarDecls a >< structVarDecls b}
+                         structVarDecls = structVarDecls a >< structVarDecls b,
+                         preproDirs = mappend (preproDirs a) (preproDirs b)}
 
 
 newtype FuncName = FuncName {fromFuncName :: SafeName}
@@ -285,7 +291,7 @@ data VarArg = forall a . ConsArg (TypedExpr a) VarArg
             | NilArg
 
 data ExtFunction a = ExtFunction {fromExtFunction :: HLCSymbol}
-                   | VarExtFunction HLCSymbol
+                   | VarExtFunction {fromVarExtFunction :: HLCSymbol}
 
 class (HLCTypeable b) => RHSExpression a b | a -> b where
   rhsExpr :: a -> HLC (TypedExpr b)

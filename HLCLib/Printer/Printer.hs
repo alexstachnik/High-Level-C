@@ -11,12 +11,25 @@ import Data.Foldable
 import Language.C.Syntax.AST
 import Language.C.Syntax.Constants
 import Language.C.Data.Node
+import Language.C.Pretty
 
 import Data.Maybe
+
+import Text.PrettyPrint
+
+import Printer.PostProcess
 
 import Util.Names
 
 e = undefNode
+
+printPreProDir :: PreprocessorDirective -> Doc
+printPreProDir (PreprocessorDirective str) = text str
+
+printWholeTU :: CWriter -> Doc
+printWholeTU cwriter =
+  (vcat $ map printPreProDir (toList $ preproDirs cwriter)) $+$
+  (pretty $ printCWriter $ processSymbols cwriter)
 
 printCWriter :: CWriter -> CTranslationUnit NodeInfo
 printCWriter (CWriter {..}) = CTranslUnit (toList decls) e
