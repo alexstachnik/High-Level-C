@@ -133,6 +133,11 @@ instance Out CIntRepr
 
 q = [cExpr|sizeof(int)|]
 
+qrq = [cTransL|
+void f() {
+return;
+}|]
+
 qq = [cTransL|
 struct MyStruct;
 struct MyStruct {

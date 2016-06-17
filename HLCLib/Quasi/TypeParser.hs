@@ -16,6 +16,7 @@ extTypeToTHType :: Type -> TH.Type
 extTypeToTHType (TyApp lhs rhs) = TH.AppT (extTypeToTHType lhs) (extTypeToTHType rhs)
 extTypeToTHType (TyCon name) = TH.ConT (TH.mkName $ prettyPrint name)
 extTypeToTHType (TyVar name) = TH.VarT (TH.mkName $ prettyPrint name)
+extTypeToTHType (TyParen ty) = extTypeToTHType ty
 extTypeToTHType (TyEquals lhs rhs) =
   TH.AppT (TH.AppT TH.EqualityT $ extTypeToTHType lhs) $ extTypeToTHType rhs
 

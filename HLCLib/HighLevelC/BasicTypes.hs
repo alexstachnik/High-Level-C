@@ -215,7 +215,7 @@ doubleLit = return . TypedExpr . LitExpr . DoubleLit
 stringLit :: String -> HLC (TypedExpr HLCString)
 stringLit = return . TypedExpr . LitExpr . StrLit
 
-void :: TypedExpr HLCVoid
-void = TypedExpr Void
+void :: HLC (TypedExpr HLCVoid)
+void = return $ TypedExpr Void
 
 

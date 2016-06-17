@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Printer.Printer where
 
@@ -8,10 +9,15 @@ import IntermediateLang.ILTypes
 import Data.Sequence((><))
 import Data.Foldable
 
+import Quasi.QuasiC
+
 import Language.C.Syntax.AST
 import Language.C.Syntax.Constants
 import Language.C.Data.Node
 import Language.C.Pretty
+import Language.C.Data.Ident
+
+import Language.Haskell.TH(Name,nameBase)
 
 import Data.Maybe
 
@@ -20,16 +26,28 @@ import Text.PrettyPrint
 import Printer.PostProcess
 
 import Util.Names
+import Util.THUtil
 
 e = undefNode
+
+mainFunction :: (NodeInfo -> CExpression NodeInfo)
+             -> CExternalDeclaration NodeInfo
+mainFunction callName = [cDecl|
+int main(int argc, char** argv)
+{
+  return $callName (argc,argv);
+}|]
 
 printPreProDir :: PreprocessorDirective -> Doc
 printPreProDir (PreprocessorDirective str) = text str
 
-printWholeTU :: CWriter -> Doc
-printWholeTU cwriter =
+printWholeTU :: Maybe Name -> CWriter -> Doc
+printWholeTU mainFuncName cwriter =
   (vcat $ map printPreProDir (toList $ preproDirs cwriter)) $+$
-  (pretty $ printCWriter $ processSymbols cwriter)
+  (pretty $ printCWriter $ processSymbols cwriter) $+$
+  maybe empty (pretty .
+               mainFunction .
+               (\name -> CVar (internalIdent $ capitalize $ nameBase name))) mainFuncName
 
 printCWriter :: CWriter -> CTranslationUnit NodeInfo
 printCWriter (CWriter {..}) = CTranslUnit (toList decls) e
@@ -113,6 +131,9 @@ printBlock cxtStack (HLCBlock blockVars (StatementList blockStmts) retCxt) =
   concatMap (printBlock [] . variableCons) blockVars ++
   concatMap (printLabeledStmt cxtStack) blockStmts ++
   case retCxt of
+    (NullContext (Variable retSymb _ _ _ _) Void) ->
+      (concatMap (printBlock []) $ concatMap snd cxtStack) ++
+      [returnStmt Void]
     (NullContext (Variable retSymb _ _ _ _) expr) ->
       (CBlockStmt $ CExpr (Just $ CAssign CAssignOp (CVar (extractExactSymbol retSymb) e) (printExpr expr) e) e) :
       (concatMap (printBlock []) $ concatMap snd cxtStack) ++
@@ -146,6 +167,7 @@ printExpr (ExprBinOp binop lhs rhs) = CBinary (printBinOp binop) (printExpr lhs)
 printExpr (HLCTernary cond ifExpr elseExpr) =
   CCond (printExpr cond) (Just $ printExpr ifExpr) (printExpr elseExpr) e
 printExpr (HLCCast ty expr) = CCast (printType ty) (printExpr expr) e
+printExpr (Void) = error "Tried to print Void expr"
 
 printBinOp :: HLCBinOp -> CBinaryOp
 printBinOp HLCPlus = CAddOp

@@ -263,6 +263,9 @@ type HLCWeakPtr a = HLCPtr WeakPtr a
 type HLCSmartPtr a = HLCPtr SmartPtr a
 type HLCUniquePtr a = HLCPtr UniquePtr a
 
+type family MkWeakPtr a where
+  MkWeakPtr (HLC (TypedExpr a)) = HLC (TypedExpr (HLCWeakPtr a))
+
 newtype HLCArray a (arrLen :: Nat) = HLCArray a deriving (Typeable)
 
 instance (HLCTypeable a, KnownNat arrLen, Typeable arrLen) => HLCTypeable (HLCArray a arrLen) where

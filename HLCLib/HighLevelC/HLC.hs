@@ -101,7 +101,9 @@ declareFunc' proxyName args (HLC func) = do
   symb <- makeFuncSymb proxyName retVar
   block <- grabBlock func
   writeFuncProto $ FunctionProto retType symb args
-  writeFunc $ FunctionDef retType symb args (addVarToBlock retVar block)
+  case args of
+    (_:_) -> writeFunc $ FunctionDef retType symb args (addVarToBlock retVar block)
+    [] -> writeFunc $ FunctionDef retType symb args block
   return symb
     where name = getFuncName proxyName
 

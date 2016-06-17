@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fwarn-unused-do-bind #-}
+
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -47,6 +49,7 @@ import HighLevelC.PrimFunctions
 import HighLevelC.VarDecls
 import HighLevelC.Operators
 import HighLevelC.TypeSynonyms
+import HighLevelC.LangConstructs
 import IntermediateLang.ILTypes
 import Printer.Printer
 import Printer.PostProcess
@@ -55,93 +58,30 @@ import Language.Haskell.TH
 import Language.Haskell.TH as TH
 
 
-$(generateFunction [funcDefn|testBinOp (HLCNumType a1, HLCBasicIntType a1) => a1 -> a1 -> HLCInt|])
 
-testBinOp ret a b = do
-  c <- makePrimVar type_Int
-  c =: fromIntType (a %+ b)
-  c =: c %+ intLit 10
-  ret (lhsExpr c)
+$(generateFunction [funcDefn|test HLCVoid|])
+test ret = do
+  str <- stringLit "Hello, world!\n"
+  callPrintf str NilArg
+  ret void
 
-$(generateStructDesc [structDefn|SomeStructType forall a1.
-                                {fieldAA :: a1,fieldBB :: a1,fieldCC :: HLCInt} where
-                                isPassable = True
-                                constructor = cons2
-                                destructor = dest2|])
+$(generateFunction [funcDefn|fact HLCInt -> HLCInt|])
 
-cons2 _ makeStructField cxt = do
-  fieldA <- makeStructField fieldAA
-  fieldB <- makeStructField fieldBB
-  fieldC <- makeStructField fieldCC
-  return cxt
-dest2 _ cxt = do
-  return cxt
+fact ret n = do
+  ifThenElse (n %<= intLit 1)
+    (ret n)
+    (ret $ (n %* (call_fact (n %- intLit 1))))
 
-class Group s elt | elt -> s where
-  add' :: s -> elt -> elt -> elt
-
-add :: (ClassWrap2 Group s elt) =>
-       FuncTyWrap3 s elt elt elt
-add = funcWrap3 add'
-
-$(generateStructDesc [structDefn|GaloisField {order :: HLCInt} where
-                                isPassable = True
-                                constructor = galoisCons
-                                destructor = galoisDest|])
-galoisCons _ makeStructField cxt = do
-  q <- makeStructField order
-  q =: (intLit 7)
-  return cxt
-galoisDest _ cxt = return cxt
-
-instance Group Type_GaloisField Type_Int where
-  add' field lhs rhs = (lhs %+ rhs) %% (field %. order)
-
-$(generateFunction [funcDefn|doStuff HLCInt -> HLCInt|])
-
-doStuff :: (HLC (TypedExpr HLCInt) -> HLC b) -> HLC (TypedExpr HLCInt) -> HLC b
-doStuff ret n = do
-  galois <- makeLocalStruct type_GaloisField
-  m <- makePrimVar type_Int
-  m =: intLit 3
-  m =: m %+ intLit 2
-  _ <- add galois n n
-  result <- add galois n m
-  ret (return result)
-
-$(generateFunction [funcDefn|someFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
-someFunc ret n m = do
-  x <- allocMem (type_SomeStructType type_Int) (intLit 3)
-  lderef x $. fieldAA =: intLit 5
-  temp <- makePrimVar type_Int
-  temp =: intLit 17
-  exprStmt $ call_doStuff temp
-  x $@ intLit 1 $. fieldAA =: intLit 4
-  ret $ fromIntType m
-
-$(generateFunction [funcDefn|pqp (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
-pqp ret n m = do
-  x <- allocMem (type_SomeStructType type_Int) (intLit 3)
-  lderef x $. fieldAA =: intLit 5
-  n' <- intLit 1
-  temp <- makePrimVar type_Int
-  temp =: intLit 17
-  exprStmt $ call_doStuff temp
-  str <- stringLit "Test %d\n"
-  callPrintf str (ConsArg n' NilArg)
-  x $@ intLit 1 $. fieldAA =: intLit 4
-  ret $ fromIntType m
-
-
-type HLCIntT = HLC (TypedExpr HLCInt)
-
-fff = do
-  _ <- call_someFunc (withType :: Type_Int) (withType :: Type_Int)
-  _ <- call_doStuff (withType :: Type_Int)
-  _ <- call_testBinOp (withType :: Type_Char) (withType :: Type_Char)
-  _ <- call_pqp (withType :: Type_Int) (withType :: Type_Int)
-  return ()
+$(generateFunction [funcDefn|hlcMain HLCInt -> HLCWeakPtr (HLCWeakPtr HLCChar) -> HLCInt|])
+hlcMain ret argc argv = do
+  exprStmt $ call_test
+  ret (call_fact (intLit 3))
 
 main :: IO ()
-main = print $ printWholeTU $ runOuterHLC fff
+main = print $ printWholeTU (Just 'hlcMain) $ runOuterHLC $ do
+  _ <- call_test
+  _ <- call_fact (withType :: Type_Int)
+  _ <- call_hlcMain (withType :: Type_Int) (withType :: MkWeakPtr (MkWeakPtr Type_Char))
+  return ()
+  
 

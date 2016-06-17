@@ -51,17 +51,15 @@ callExt2 (VarExtFunction name) arg1 arg2 varArgs =
   ([fromTypedExpr arg1, fromTypedExpr arg2] ++ varArgToList varArgs)
 
 newtype ArgWrap0 r = ArgWrap0 {fromArgWrap0 :: r}
-
-call0 :: forall name retType.
+call0 :: forall name a1 retType.
          (HLCFunction
           name
           ArgWrap0
           retType,
           HLCTypeable retType) =>
          Proxy name ->
-         Variable ->
          HLC (TypedExpr retType)
-call0 proxyName retVar = do
+call0 proxyName = do
   let argFields = []
       untypedArgs = []
   callFunc proxyName (zip argFields untypedArgs)

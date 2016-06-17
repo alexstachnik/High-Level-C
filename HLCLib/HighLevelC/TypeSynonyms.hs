@@ -6,6 +6,9 @@ module HighLevelC.TypeSynonyms where
 import GHC.Exts
 import HighLevelC.HLCTypes
 
+funcWrap0 :: HLC (TypedExpr r) -> HLC (TypedExpr r)
+funcWrap0 = id
+
 funcWrap1 :: (RHSExpression x1 x1') =>
              (HLC (TypedExpr x1') ->
               HLC (TypedExpr r)) ->
