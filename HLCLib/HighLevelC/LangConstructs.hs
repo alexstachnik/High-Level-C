@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 
 module HighLevelC.LangConstructs where
 
@@ -9,7 +10,8 @@ import HighLevelC.BasicTypes
 import HighLevelC.CWriter
 import Util.Names
 
-ifThenElseRest :: TypedExpr HLCBool ->
+ifThenElseRest :: (RHSExpression a HLCBool) =>
+                  a ->
                   (HLC Context -> HLC Context) ->
                   (HLC Context -> HLC Context) ->
                   HLC Context ->
@@ -20,20 +22,24 @@ ifThenElseRest cond trueBranch falseBranch rest = HLC $ do
     (return $ SomeContext contSymb)
   falseBody <- grabBlock $ innerHLC $ falseBranch
     (return $ SomeContext contSymb)
-  writeStmt (IfThenElseRestStmt (fromTypedExpr cond) contSymb trueBody falseBody)
+  condExpr <- innerHLC $ rhsExpr cond
+  writeStmt (IfThenElseRestStmt (fromTypedExpr condExpr) contSymb trueBody falseBody)
   innerHLC rest
 
-ifThenElse :: TypedExpr HLCBool ->
+ifThenElse :: (RHSExpression a HLCBool) =>
+              a ->
               HLC Context ->
               HLC Context ->
               HLC Context
 ifThenElse cond trueBranch falseBranch = HLC $ do
   trueBody <- grabBlock $ innerHLC trueBranch
   falseBody <- grabBlock $ innerHLC falseBranch
-  writeStmt (IfThenElseStmt (fromTypedExpr cond) trueBody falseBody)
+  condExpr <- innerHLC $ rhsExpr cond
+  writeStmt (IfThenElseStmt (fromTypedExpr condExpr) trueBody falseBody)
   return NextLine
 
-whileRest :: TypedExpr HLCBool ->
+whileRest :: (RHSExpression a HLCBool) =>
+             a ->
              (HLC Context -> HLC Context -> HLC Context) ->
              HLC Context ->
              HLC Context
@@ -43,5 +49,6 @@ whileRest cond body rest = HLC $ do
   body <- grabBlock $ innerHLC $ body
     (return $ SomeContext breakSymb)
     (return $ SomeContext contSymb)
-  writeStmt (WhileStmt (fromTypedExpr cond) breakSymb contSymb body)
+  condExpr <- innerHLC $ rhsExpr cond
+  writeStmt (WhileStmt (fromTypedExpr condExpr) breakSymb contSymb body)
   innerHLC rest
