@@ -181,25 +181,27 @@ ptrEqual lhs rhs = do
 
 infixl 9 %.
 
-(%.) :: forall structType fieldName fieldType p.
-        (StructFieldClass p structType fieldName fieldType, Typeable fieldName) =>
-        HLC (TypedExpr structType) ->
+(%.) :: (RHSExpression a structType,
+         StructFieldClass p structType fieldName fieldType,
+         Typeable fieldName) =>
+        a ->
         Proxy fieldName ->
         HLC (TypedExpr fieldType)
-(%.) = readElt
+st %. field = readElt (rhsExpr st) field
 
-rderef :: HLC (TypedExpr (HLCPtr b a)) -> HLC (TypedExpr a)
-rderef = fmap (TypedExpr . LHSExpr . untypeLHS . TypedLHSDeref . TypedLHSPtr)
+rderef :: (RHSExpression c (HLCPtr p a)) =>
+          c -> HLC (TypedExpr a)
+rderef = fmap (TypedExpr . LHSExpr . untypeLHS . TypedLHSDeref . TypedLHSPtr) . rhsExpr
 
 infixl 9 %@
 
-(%@) :: (HLCBasicIntType c) =>
-        HLC (TypedExpr (HLCPtr b a)) ->
-        HLC (TypedExpr c) ->
-        HLC (TypedExpr a)
+(%@) :: (RHSExpression a (HLCPtr p a'),
+         RHSExpression b b',
+         HLCBasicIntType b') =>
+        a -> b -> HLC (TypedExpr a')
 (%@) ptr n = do
-  ptr' <- ptr
-  n' <- n
+  ptr' <- rhsExpr ptr
+  n' <- rhsExpr n
   return $ TypedExpr $ LHSExpr $ untypeLHS $
     TypedLHSDerefPlusOffset (TypedLHSPtr ptr') n'
 
@@ -215,33 +217,26 @@ lderef = TypedLHSDeref
 infixl 9 $@
 
 ($@) :: (HLCBasicIntType c) =>
-           TypedLHS (HLCPtr b a) ->
-           TypedExpr c ->
-           TypedLHS a
+        TypedLHS (HLCPtr b a) ->
+        TypedExpr c ->
+        TypedLHS a
 ($@) = TypedLHSDerefPlusOffset
 
-hlcSigNum :: forall a. (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a)
-hlcSigNum val = do
-  cond <- (val `hlcLT` hlcFromInteger 0)
-  thenExpr :: TypedExpr a <- hlcFromInteger (-1)
-  cond2 <- (val `hlcGT` hlcFromInteger 0)
-  then2Expr :: TypedExpr a <- hlcFromInteger 1
-  elseExpr :: TypedExpr a <- hlcFromInteger 0
-  return $ TypedExpr $
-    HLCTernary (fromTypedExpr cond) (fromTypedExpr thenExpr) $
-    HLCTernary (fromTypedExpr cond2) (fromTypedExpr then2Expr)
-    (fromTypedExpr elseExpr)
 
-hlcNegate :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcNegate :: (RHSExpression a b,
+              HLCNumType b) =>
+             a -> HLC (TypedExpr b)
 hlcNegate val = do
-  val' <- val
+  val' <- rhsExpr val
   return $ TypedExpr $ ExprNegate (fromTypedExpr val')
 
-hlcAbs :: (HLCNumType a) => HLC (TypedExpr a) -> HLC (TypedExpr a)
+hlcAbs :: (RHSExpression a b,
+           HLCNumType b) =>
+          a -> HLC (TypedExpr b)
 hlcAbs val = do
-  cond <- (val `hlcLT` hlcFromInteger 0)
-  thenExpr <- (hlcNegate val)
-  elseExpr <- val
+  cond <- (rhsExpr val `hlcLT` hlcFromInteger 0)
+  thenExpr <- (hlcNegate $ rhsExpr val)
+  elseExpr <- rhsExpr val
   return $ TypedExpr $
     HLCTernary (fromTypedExpr cond) (fromTypedExpr thenExpr) (fromTypedExpr elseExpr)
 
