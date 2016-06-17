@@ -113,11 +113,10 @@ $(generateFunction [funcDefn|someFunc (HLCBasicIntType a1) => a1 -> HLCInt -> HL
 someFunc ret n m = do
   x <- allocMem (type_SomeStructType type_Int) (intLit 3)
   lderef x $. fieldAA =: intLit 5
-  n' <- intLit 1
   temp <- makePrimVar type_Int
   temp =: intLit 17
   exprStmt $ call_doStuff temp
-  x $@ n' $. fieldAA =: intLit 4
+  x $@ intLit 1 $. fieldAA =: intLit 4
   ret $ fromIntType m
 
 $(generateFunction [funcDefn|pqp (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
@@ -130,7 +129,7 @@ pqp ret n m = do
   exprStmt $ call_doStuff temp
   str <- stringLit "Test %d\n"
   callPrintf str (ConsArg n' NilArg)
-  x $@ n' $. fieldAA =: intLit 4
+  x $@ intLit 1 $. fieldAA =: intLit 4
   ret $ fromIntType m
 
 

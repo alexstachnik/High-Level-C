@@ -209,20 +209,29 @@ infixl 9 %@
 
 infixl 9 $.
 
-($.) :: StructFieldClass p structType fieldName fieldType =>
-        TypedLHS structType -> Proxy fieldName -> TypedLHS fieldType
-($.) = TypedLHSElement
+($.) :: (LHSExpression a structType,
+         StructFieldClass p structType fieldName fieldType) =>
+        a -> Proxy fieldName -> HLC (TypedLHS fieldType)
+($.) struct field = do
+  struct' <- hlcLHSExpr struct
+  return $ TypedLHSElement struct' field
 
-lderef :: TypedLHS (HLCPtr b a) -> TypedLHS a
-lderef = TypedLHSDeref
+lderef :: (LHSExpression a (HLCPtr p a')) =>
+          a -> HLC (TypedLHS a')
+lderef var = do
+  var' <- hlcLHSExpr var
+  return $ TypedLHSDeref var'
 
 infixl 9 $@
 
-($@) :: (HLCBasicIntType c) =>
-        TypedLHS (HLCPtr b a) ->
-        TypedExpr c ->
-        TypedLHS a
-($@) = TypedLHSDerefPlusOffset
+($@) :: (LHSExpression a (HLCPtr p a'),
+         RHSExpression b b',
+         HLCBasicIntType b') =>
+        a -> b -> HLC (TypedLHS a')
+($@) lhs rhs = do
+  lhs' <- hlcLHSExpr lhs
+  rhs' <- rhsExpr rhs
+  return $ TypedLHSDerefPlusOffset lhs' rhs'
 
 
 hlcNegate :: (RHSExpression a b,
@@ -250,18 +259,21 @@ addrOf var = do
   lhsExpr $ TypedLHSAddrOf $ TypedLHSVar var'
 
 
-assignVar :: forall a b.
-             (HLCTypeable a, Passability a ~ IsPassable,
-              RHSExpression b a) =>
-             TypedLHS a -> b -> HLC ()
+assignVar :: forall a a' b.
+             (LHSExpression a a',
+              HLCTypeable a', Passability a' ~ IsPassable,
+              RHSExpression b a') =>
+             a -> b -> HLC ()
 assignVar lhs rhs = do
+  lhs' <- hlcLHSExpr lhs
   rhs' <- rhsExpr rhs
-  HLC $ writeStmt $ AssignmentStmt (untypeLHS lhs) (fromTypedExpr rhs')
+  HLC $ writeStmt $ AssignmentStmt (untypeLHS lhs') (fromTypedExpr rhs')
 
 infixr 0 =:
 
-(=:) :: forall a b.
-        (HLCTypeable a, Passability a ~ IsPassable,
-         RHSExpression b a) =>
-        TypedLHS a -> b -> HLC ()
+(=:) :: forall a a' b.
+        (LHSExpression a a',
+         HLCTypeable a', Passability a' ~ IsPassable,
+         RHSExpression b a') =>
+        a -> b -> HLC ()
 (=:) = assignVar

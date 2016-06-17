@@ -302,6 +302,15 @@ instance (HLCTypeable a) => RHSExpression (HLC (TypedExpr a)) a where
 instance (HLCTypeable a) => RHSExpression (TypedLHS a) a where
   rhsExpr = lhsExpr
 
+class (HLCTypeable b) => LHSExpression a b | a -> b where
+  hlcLHSExpr :: a -> HLC (TypedLHS b)
+
+instance (HLCTypeable b) => LHSExpression (HLC (TypedLHS b)) b where
+  hlcLHSExpr = id
+
+instance (HLCTypeable a) => LHSExpression (TypedLHS a) a where
+  hlcLHSExpr = return
+
 untypeLHS :: TypedLHS a -> UntypedLHS
 untypeLHS (TypedLHSVar x) = LHSVar (fromTypedVar x)
 untypeLHS (TypedLHSPtr x) = LHSPtr (fromTypedExpr x)
