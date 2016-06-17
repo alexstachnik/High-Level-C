@@ -93,12 +93,17 @@ propertyParser = do
   propVal <- identifier
   return (propName,propVal)
 
+structTypesParser :: Parsec String u [Type]
+structTypesParser = do
+  tys <- parens $ commaSep someTypeParser
+  reservedOp "=>"
+  return tys
+
 structParser :: Parsec String u StructDesc
 structParser = do
   structName <- fmap mkName identifier
   tyVars <- fmap (maybe [] id) $ optionMaybe forallParser
-  someTypes <- fmap (maybe [] id) $ optionMaybe (parens $ commaSep someTypeParser)
-  reservedOp "=>"
+  someTypes <- fmap (maybe [] id) $ optionMaybe structTypesParser
   fields <- braces $ commaSep fieldParser
   reserved "where"
   props <- many propertyParser

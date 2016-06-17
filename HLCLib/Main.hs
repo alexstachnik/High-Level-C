@@ -63,7 +63,7 @@ testBinOp ret a b = do
   c =: c %+ intLit 10
   ret (lhsExpr c)
 
-$(generateStructDesc [structDefn|SomeStructType forall a1.  =>
+$(generateStructDesc [structDefn|SomeStructType forall a1.
                                 {fieldAA :: a1,fieldBB :: a1,fieldCC :: HLCInt} where
                                 isPassable = True
                                 constructor = cons2
@@ -84,7 +84,7 @@ add :: (ClassWrap2 Group s elt) =>
        FuncTyWrap3 s elt elt elt
 add = funcWrap3 add'
 
-$(generateStructDesc [structDefn|GaloisField => {order :: HLCInt} where
+$(generateStructDesc [structDefn|GaloisField {order :: HLCInt} where
                                 isPassable = True
                                 constructor = galoisCons
                                 destructor = galoisDest|])
@@ -120,6 +120,17 @@ someFunc ret n m = do
   x $@ n' $. fieldAA =: intLit 4
   ret $ fromIntType m
 
+$(generateFunction [funcDefn|pqp (HLCBasicIntType a1) => a1 -> HLCInt -> HLCChar|])
+pqp ret n m = do
+  x <- allocMem (type_SomeStructType type_Int) (intLit 3)
+  lderef x $. fieldAA =: intLit 5
+  n' <- intLit 1
+  temp <- makePrimVar type_Int
+  temp =: intLit 17
+  exprStmt $ call_doStuff temp
+  x $@ n' $. fieldAA =: intLit 4
+  ret $ fromIntType m
+
 
 type HLCIntT = HLC (TypedExpr HLCInt)
 
@@ -127,6 +138,7 @@ fff = do
   _ <- call_someFunc (withType :: Type_Int) (withType :: Type_Int)
   _ <- call_doStuff (withType :: Type_Int)
   _ <- call_testBinOp (withType :: Type_Char) (withType :: Type_Char)
+  _ <- call_pqp (withType :: Type_Int) (withType :: Type_Int)
   return ()
 
 main :: IO ()
