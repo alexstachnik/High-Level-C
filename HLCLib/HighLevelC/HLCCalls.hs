@@ -119,3 +119,36 @@ call2 proxyName marg1 marg2 = do
      (return $ TypedExpr $ LHSExpr $ LHSVar d1)
      (return $ TypedExpr $ LHSExpr $ LHSVar d2))
 
+newtype ArgWrap3 a1 a2 a3 r = ArgWrap3 {fromArgWrap3 :: a1 -> a2 -> a3 -> r}
+call3 :: forall name a1 a2 a3 retType.
+         (HLCFunction
+          name
+          (ArgWrap3 (HLC (TypedExpr a1)) (HLC (TypedExpr a2)) (HLC (TypedExpr a3)))
+          retType,
+          HLCTypeable a1, HLCTypeable a2, HLCTypeable a3,
+          HLCTypeable retType,
+          Passability a1 ~ IsPassable,
+          Passability a2 ~ IsPassable,
+          Passability a3 ~ IsPassable) =>
+         Proxy name ->
+         HLC (TypedExpr a1) ->
+         HLC (TypedExpr a2) ->
+         HLC (TypedExpr a3) ->
+         HLC (TypedExpr retType)
+call3 proxyName marg1 marg2 marg3 = do
+  arg1 <- marg1
+  arg2 <- marg2
+  arg3 <- marg3
+  [d1,d2,d3] <- mapM (makeHLCSymbol . makeSafeName) ["d1","d2","d3"]
+  let argFields = [Argument d1 (getObjType arg1),
+                   Argument d2 (getObjType arg2),
+                   Argument d3 (getObjType arg3)]
+      untypedArgs = [fromTypedExpr arg1,
+                     fromTypedExpr arg2,
+                     fromTypedExpr arg3]
+  callFunc proxyName (zip argFields untypedArgs)
+    ((fromArgWrap3 $ call proxyName (returnContext proxyName))
+     (return $ TypedExpr $ LHSExpr $ LHSVar d1)
+     (return $ TypedExpr $ LHSExpr $ LHSVar d2)
+     (return $ TypedExpr $ LHSExpr $ LHSVar d3))
+

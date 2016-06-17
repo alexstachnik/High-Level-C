@@ -65,8 +65,8 @@ makeLocalStruct :: forall structType p. (Struct p structType) =>
                    HLC (TypedLHS structType)
 makeLocalStruct _ = HLC $ do
   symb <- makeHLCSymbol_ "stVar"
-  consCont <- makeHLCSymbol_ $ makeSafeName "conscont"
-  destCont <- makeHLCSymbol_ $ makeSafeName "destcont"
+  consCont <- makeGloballyUniqueSymbol_ $ makeSafeName "conscont"
+  destCont <- makeGloballyUniqueSymbol_ $ makeSafeName "destcont"
   _ <- innerHLC $ declareStruct (Proxy :: Proxy structType)
   let ty = fromTW (hlcType :: TW structType)
       this = TypedVar symb

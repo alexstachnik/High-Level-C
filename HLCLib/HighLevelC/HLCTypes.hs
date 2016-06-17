@@ -314,6 +314,17 @@ instance (HLCTypeable b) => LHSExpression (HLC (TypedLHS b)) b where
 instance (HLCTypeable a) => LHSExpression (TypedLHS a) a where
   hlcLHSExpr = return
 
+data HLCVoid
+type Type_Void = HLC (TypedExpr HLCVoid)
+type_Void = Proxy :: Proxy HLCVoid
+instance HLCTypeable HLCVoid where
+  hlcType = TW (BaseType NotConst ILVoid)
+instance HLCPrimType HLCVoid
+instance Struct IsPassable HLCVoid where
+  constructor _ _ = return
+  destructor _ = return
+
+
 untypeLHS :: TypedLHS a -> UntypedLHS
 untypeLHS (TypedLHSVar x) = LHSVar (fromTypedVar x)
 untypeLHS (TypedLHSPtr x) = LHSPtr (fromTypedExpr x)

@@ -20,7 +20,6 @@ data HLCInt
 data HLCChar
 data HLCDouble
 data HLCString
-data HLCVoid
 data HLCInt8
 data HLCInt16
 data HLCInt32
@@ -35,7 +34,6 @@ type Type_Int = HLC (TypedExpr HLCInt)
 type Type_Char = HLC (TypedExpr HLCChar)
 type Type_Double = HLC (TypedExpr HLCDouble)
 type Type_String = HLC (TypedExpr HLCString)
-type Type_Void = HLC (TypedExpr HLCVoid)
 type Type_Int8 = HLC (TypedExpr HLCInt8)
 type Type_Int16 = HLC (TypedExpr HLCInt16)
 type Type_Int32 = HLC (TypedExpr HLCInt32)
@@ -50,7 +48,6 @@ type_Int = Proxy :: Proxy HLCInt
 type_Char = Proxy :: Proxy HLCChar
 type_Double = Proxy :: Proxy HLCDouble
 type_String = Proxy :: Proxy HLCString
-type_Void = Proxy :: Proxy HLCVoid
 type_Int8 = Proxy :: Proxy HLCInt8
 type_Int16 = Proxy :: Proxy HLCInt16
 type_Int32 = Proxy :: Proxy HLCInt32
@@ -72,9 +69,6 @@ instance HLCTypeable HLCDouble where
 
 instance HLCTypeable HLCString where
   hlcType = TW (PtrType NotConst (BaseType NotConst (ILChar NoSign)))
-
-instance HLCTypeable HLCVoid where
-  hlcType = TW (BaseType NotConst ILVoid)
 
 instance HLCTypeable HLCInt8 where
   hlcType = TW (BaseType NotConst (ILNewName $ ILTypeName "int8_t"))
@@ -124,7 +118,6 @@ instance HLCPrimType HLCInt
 instance HLCPrimType HLCChar
 instance HLCPrimType HLCDouble
 instance HLCPrimType HLCString
-instance HLCPrimType HLCVoid
 instance HLCPrimType HLCInt8
 instance HLCPrimType HLCInt16
 instance HLCPrimType HLCInt32
@@ -145,9 +138,6 @@ instance Struct IsPassable HLCDouble where
   constructor _ _ = return
   destructor _ = return
 instance Struct NotPassable HLCString where
-  constructor _ _ = return
-  destructor _ = return
-instance Struct IsPassable HLCVoid where
   constructor _ _ = return
   destructor _ = return
 instance Struct IsPassable HLCInt8 where
