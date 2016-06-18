@@ -143,6 +143,7 @@ class (HLCTypeable structType) => Struct passable structType | structType -> pas
                  Context ->
                  HLC Context
   destructor :: Proxy structType -> Context -> HLC Context
+  fieldList :: Proxy structType -> [StructField]
 
 class (Struct passable structType,
        Typeable fieldName,
@@ -325,6 +326,7 @@ instance HLCPrimType HLCVoid
 instance Struct IsPassable HLCVoid where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 
 
 untypeLHS :: TypedLHS a -> UntypedLHS

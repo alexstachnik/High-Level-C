@@ -82,6 +82,10 @@ makeLocalStruct _ = HLC $ do
   writeVar $ Variable symb ty Nothing cons dest
   return $ TypedLHSVar this
 
+nullConstructor :: Proxy a -> b -> Context -> HLC Context
+nullConstructor _ _ cxt = return cxt
 
+nullDestructor :: Proxy a -> Context -> HLC Context
+nullDestructor _ cxt = return cxt
 
 

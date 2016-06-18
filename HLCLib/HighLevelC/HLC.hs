@@ -121,12 +121,7 @@ declareStruct' :: forall p structType. (Struct p structType) =>
 declareStruct' proxyName = do
   symb <- makeStructSymb proxyName
   writeStructProto $ StructProto symb
-  fields <- grabStructVars $ innerHLC $
-    constructor
-    (Proxy :: Proxy structType)
-    (HLC . makeStructField (Proxy :: Proxy structType))
-    VoidReturn
-  writeStruct $ StructDef symb fields
+  writeStruct $ StructDef symb (fieldList (Proxy :: Proxy structType))
   return symb
 
 declareStruct :: forall p structType. (Struct p structType) =>

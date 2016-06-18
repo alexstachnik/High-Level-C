@@ -14,6 +14,8 @@ import Data.List
 import Data.Typeable
 import HighLevelC.HLCTypes
 import HighLevelC.BasicTypes
+import HighLevelC.VarDecls
+
 
 import Text.Parsec
 import Text.Parsec.Language
@@ -107,9 +109,9 @@ structParser = do
   fields <- braces $ commaSep fieldParser
   reserved "where"
   props <- many propertyParser
-  let isPassable = read $ maybe "False" id $ lookup "isPassable" props :: Bool
-      consName = mkName $ fromJust $ lookup "constructor" props
-      destName = mkName $ fromJust $ lookup "destructor" props
+  let isPassable = read $ maybe "True" id $ lookup "isPassable" props :: Bool
+      consName = maybe 'nullConstructor (mkName) $ lookup "constructor" props
+      destName = maybe 'nullDestructor (mkName) $ lookup "destructor" props
   return $ StructDesc structName tyVars someTypes fields isPassable consName destName
 
 parseStruct :: String -> StructDesc

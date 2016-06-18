@@ -82,14 +82,8 @@ toInt :: (ClassWrap2 Group g elt) =>
 toInt = funcWrap1 toInt'
 
 
-$(generateStructDesc [structDefn|PrimeFieldElt {pfieldElt :: HLCInt} where
-                                isPassable = True
-                                constructor = primeFieldEltCons
-                                destructor = primeFieldEltDest|])
-primeFieldEltCons _ makeStructField cxt = do
-  _ <- makeStructField pfieldElt
-  return cxt
-primeFieldEltDest _ cxt = return cxt
+$(generateStructDesc [structDefn|PrimeFieldElt {pfieldElt :: HLCInt} where|])
+
 
 $(generateFunction [funcDefn|primeFieldAdd PrimeField -> PrimeFieldElt -> PrimeFieldElt -> PrimeFieldElt|])
 primeFieldAdd ret field lhs rhs = do

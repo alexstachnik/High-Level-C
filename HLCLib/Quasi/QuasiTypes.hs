@@ -13,6 +13,7 @@ import Data.Data
 import Data.Typeable
 import HighLevelC.HLCTypes
 import HighLevelC.BasicTypes
+import Util.Names
 import Language.Haskell.TH
 
 import Text.PrettyPrint
@@ -131,7 +132,10 @@ generateStructDesc structDesc = do
   extFields <- mapM makeFieldName $ fields structDesc
   generateStructDesc' extFields structDesc
 
-xqx = [d| foo = Proxy :: Proxy Int |]
+makeFieldListStructField :: ExtField -> Q Exp
+makeFieldListStructField (ExtField name _ ty) =
+  appE (appE [e|StructField|] (appE [e|SafeName|] $ stringE $ nameBase name))
+  (appE [e|fromTW|] (sigE [e|hlcType|] (appT [t|TW|] $ return ty)))
 
 generateStructDesc' :: [ExtField] -> StructDesc -> Q [Dec]
 generateStructDesc' extFields (StructDesc {..}) =
@@ -144,7 +148,8 @@ generateStructDesc' extFields (StructDesc {..}) =
    map makeStructField extFields ++
    [instanceD structConstraints (appT (appT [t|Struct|] structPassability) appliedData)
     [return $ ValD (VarP $ mkName "constructor") (NormalB (VarE constructor)) [],
-     return $ ValD (VarP $ mkName "destructor") (NormalB (VarE destructor)) []],
+     return $ ValD (VarP $ mkName "destructor") (NormalB (VarE destructor)) [],
+     funD (mkName "fieldList") [clause [wildP] fieldListBody []]],
     sigD constructor (forallT structTyParams structConstraints consType)] ++
    map makeAccessor extFields ++
    [sigD structProxyName (forallT structTyParams (return [])
@@ -153,6 +158,9 @@ generateStructDesc' extFields (StructDesc {..}) =
     tySynD structTypeName structTyParams (appT [t|HLC|] (appT [t|TypedExpr|] appliedData))]
   )
   where
+    fieldListBody :: BodyQ
+    fieldListBody = normalB $ listE $ map makeFieldListStructField extFields
+      
     structTypeName = mkName ("Type_" ++ nameBase structName)
     
     structProxyBody =

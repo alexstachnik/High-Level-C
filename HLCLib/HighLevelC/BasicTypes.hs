@@ -131,42 +131,55 @@ instance HLCPrimType HLCBool
 instance Struct IsPassable HLCInt where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCChar where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCDouble where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct NotPassable HLCString where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCInt8 where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCInt16 where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCInt32 where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCInt64 where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCUInt8 where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCUInt16 where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCUInt32 where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCUInt64 where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 instance Struct IsPassable HLCBool where
   constructor _ _ = return
   destructor _ = return
+  fieldList _ = []
 
 instance HLCNumType HLCInt where
   hlcFromInteger = return . TypedExpr . LitExpr . IntLit
