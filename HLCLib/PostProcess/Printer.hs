@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Printer.Printer where
+module PostProcess.Printer where
 
 import HighLevelC.HLCTypes
 import IntermediateLang.ILTypes
@@ -23,7 +23,8 @@ import Data.Maybe
 
 import Text.PrettyPrint
 
-import Printer.PostProcess
+import PostProcess.SymbolRewrite
+import PostProcess.ObjectRewrite
 
 import Util.Names
 import Util.THUtil
@@ -44,7 +45,7 @@ printPreProDir (PreprocessorDirective str) = text str
 printWholeTU :: Maybe Name -> CWriter -> Doc
 printWholeTU mainFuncName cwriter =
   (vcat $ map printPreProDir (toList $ preproDirs cwriter)) $+$
-  (pretty $ printCWriter $ processSymbols cwriter) $+$
+  (pretty $ printCWriter $ processObjects $ processSymbols cwriter) $+$
   maybe empty (pretty .
                mainFunction .
                (\name -> CVar (internalIdent $ capitalize $ nameBase name))) mainFuncName
@@ -116,45 +117,22 @@ printFuncDef (FunctionDef {..}) =
   (CCompound [] (printMainBlock fdefBody) e)
 
 printMainBlock :: HLCBlock -> [CCompoundBlockItem NodeInfo]
-printMainBlock block@(HLCBlock blockVars _ _) =
-  printBlock [(Nothing,map variableDest blockVars)] block
+printMainBlock block@(HLCBlock _ _ VoidReturn) =
+  printBlock block ++
+  [returnStmt Void]
+printMainBlock block@(HLCBlock _ _ (NullContext var _)) =
+  printBlock block ++
+  [returnStmt $ LHSExpr $ LHSVar $ variableName var]
+printMainBlock x = error (show x)
 
-takeUntil :: (Eq a) => (a -> Bool) -> [a] -> [a]
-takeUntil p [] = []
-takeUntil p (x:xs)
-  | p x = [x]
-  | otherwise = x:takeUntil p xs
-
-printBlock :: [(Maybe HLCSymbol,[HLCBlock])] -> HLCBlock -> [CCompoundBlockItem NodeInfo]
-printBlock cxtStack (HLCBlock blockVars (StatementList blockStmts) retCxt) =
+printBlock :: HLCBlock -> [CCompoundBlockItem NodeInfo]
+printBlock (HLCBlock blockVars (StatementList blockStmts) _) =
   map (CBlockDecl . printVarDecl) blockVars ++
-  concatMap (printBlock [] . variableCons) blockVars ++
-  concatMap (printLabeledStmt cxtStack) blockStmts ++
-  case retCxt of
-    (NullContext (Variable retSymb _ _ _ _) Void) ->
-      (concatMap (printBlock []) $ concatMap snd cxtStack) ++
-      [returnStmt Void]
-    (NullContext (Variable retSymb _ _ _ _) expr) ->
-      (CBlockStmt $ CExpr (Just $ CAssign CAssignOp (CVar (extractExactSymbol retSymb) e) (printExpr expr) e) e) :
-      (concatMap (printBlock []) $ concatMap snd cxtStack) ++
-      [returnStmt (LHSExpr $ LHSVar retSymb)]
-    (VoidReturn) -> [returnStmt Void]
-    (SomeContext symb) ->
-      (concatMap (printBlock []) $
-       concatMap snd $
-       takeUntil (\(s,_) -> s == Just symb) cxtStack) ++
-      [symbLabel symb]
-    NextLine -> []
+  concatMap printLabeledStmt blockStmts
 
 returnStmt :: HLCExpr -> CCompoundBlockItem NodeInfo
 returnStmt Void = CBlockStmt $ CReturn Nothing e
 returnStmt expr = CBlockStmt $ CReturn (Just $ printExpr expr) e
-
-gotoSymb :: HLCSymbol -> CCompoundBlockItem NodeInfo
-gotoSymb symb  = CBlockStmt $ CGoto (extractExactSymbol symb) e
-
-symbLabel :: HLCSymbol -> CCompoundBlockItem NodeInfo
-symbLabel symb  = CBlockStmt $ CLabel (extractExactSymbol symb) (CExpr Nothing e) [] e
 
 printExpr :: HLCExpr -> CExpression NodeInfo
 printExpr (LHSExpr lhs) = printLHS lhs
@@ -223,38 +201,29 @@ printLHS (LHSAddrOf lhs) = CUnary CAdrOp (printLHS lhs) e
 printVarDecl :: Variable -> CDeclaration NodeInfo
 printVarDecl (Variable {..}) = writeDecl (exactSymbolName variableName) variableType
 
-printLabeledStmt :: [(Maybe HLCSymbol,[HLCBlock])] -> HLCStatement -> [CCompoundBlockItem NodeInfo]
-printLabeledStmt cxtStack (WhileStmt cond breakSymb contSymb body) =
-  [CBlockStmt $ CWhile (printExpr cond) bodyStmt False e]
-  where newStack =
-          (Just contSymb,map variableDest $ blockVars body):
-          (Just breakSymb,[]):
-          cxtStack
-        bodyStmt = CCompound [] (printBlock newStack body) e
-printLabeledStmt cxtStack (IfThenElseStmt cond trueBranch falseBranch) =
+printLabeledStmt :: HLCStatement -> [CCompoundBlockItem NodeInfo]
+printLabeledStmt (WhileStmt cond _ _ body) =
+  [CBlockStmt $ CWhile (printExpr cond) (CCompound [] (printBlock body) e) False e]
+printLabeledStmt (IfThenElseStmt cond trueBranch falseBranch) =
   [CBlockStmt $ CIf
    (printExpr cond)
-   (CCompound [] (printBlock trueStack trueBranch) e)
-   (Just $ CCompound [] (printBlock falseStack falseBranch) e)
+   (CCompound [] (printBlock trueBranch) e)
+   (Just $ CCompound [] (printBlock falseBranch) e)
    e]
-  where trueStack = (Nothing, map variableDest $ blockVars trueBranch) : cxtStack
-        falseStack = (Nothing, map variableDest $ blockVars falseBranch) : cxtStack
-printLabeledStmt cxtStack (IfThenElseRestStmt cond lbl trueBranch falseBranch) =
+printLabeledStmt (IfThenElseRestStmt cond _ trueBranch falseBranch) =
   [CBlockStmt $ CIf
    (printExpr cond)
-   (CCompound [] (printBlock trueStack trueBranch) e)
-   (Just $ CCompound [] (printBlock falseStack falseBranch) e)
-   e,
-   CBlockStmt $ CLabel (extractExactSymbol lbl) (CExpr Nothing e) [] e]
-  where trueStack = (Just lbl, map variableDest $ blockVars trueBranch) : cxtStack
-        falseStack = (Just lbl, map variableDest $ blockVars falseBranch) : cxtStack
-printLabeledStmt cxtStack (AssignmentStmt lhs expr) =
+   (CCompound [] (printBlock trueBranch) e)
+   (Just $ CCompound [] (printBlock falseBranch) e)
+   e]
+printLabeledStmt (AssignmentStmt lhs expr) =
   [CBlockStmt $ CExpr (Just $ CAssign CAssignOp (printLHS lhs) (printExpr expr) e) e]
-printLabeledStmt cxtStack (ExpStmt expr) =
+printLabeledStmt (ExpStmt expr) =
   [CBlockStmt $ CExpr (Just $ printExpr expr) e]
-printLabeledStmt cxtStack (BlockStmt block) =
-  [CBlockStmt (CCompound [] (printBlock cxtStack block ++ endSymb) e)]
-  where endSymb =
-          case blockRetCxt block of
-            (SomeContext symb) -> [gotoSymb symb]
-            _ -> []
+printLabeledStmt (BlockStmt block) =
+  [CBlockStmt (CCompound [] (printBlock block) e)]
+printLabeledStmt (LabelStmt symb) =
+  [CBlockStmt $ CLabel (extractExactSymbol symb) (CExpr Nothing e) [] e]
+printLabeledStmt (JumpStmt symb) =
+  [CBlockStmt $ CGoto (extractExactSymbol symb) e]
+

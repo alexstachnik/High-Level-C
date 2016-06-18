@@ -166,7 +166,7 @@ data FunctionDef = FunctionDef {fdefRetType :: ILType,
 data StructDef = StructDef HLCSymbol [StructField]
                deriving (Eq,Ord,Show,Data,Typeable)
 
-newtype StatementList = StatementList [HLCStatement]
+newtype StatementList = StatementList {fromStatementList :: [HLCStatement]}
                       deriving (Eq,Ord,Show,Data,Typeable)
 
 data HLCBlock = HLCBlock {blockVars :: [Variable],
@@ -182,6 +182,8 @@ data Context = NullContext Variable HLCExpr
 
 data HLCStatement = BlockStmt HLCBlock
                   | ExpStmt HLCExpr
+                  | LabelStmt HLCSymbol
+                  | JumpStmt HLCSymbol
                   | AssignmentStmt UntypedLHS HLCExpr
                   | IfThenElseRestStmt HLCExpr HLCSymbol HLCBlock HLCBlock
                   | IfThenElseStmt HLCExpr HLCBlock HLCBlock

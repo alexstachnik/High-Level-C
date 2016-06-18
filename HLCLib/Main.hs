@@ -51,18 +51,87 @@ import HighLevelC.Operators
 import HighLevelC.TypeSynonyms
 import HighLevelC.LangConstructs
 import IntermediateLang.ILTypes
-import Printer.Printer
-import Printer.PostProcess
+import PostProcess.Printer
+import PostProcess.ObjectRewrite
 
 import Language.Haskell.TH
 import Language.Haskell.TH as TH
 
 
+$(generateStructDesc [structDefn|PrimeField {order :: HLCInt} where
+                                isPassable = True
+                                constructor = primeFieldCons
+                                destructor = primeFieldDest|])
+primeFieldCons _ makeStructField cxt = do
+  p <- makeStructField order
+  p =: (intLit 2)
+  return cxt
+primeFieldDest _ cxt = return cxt
+
+initPrimeField field n =
+  field $. order =: n
+
+class Group g elt | elt -> g where
+  add' :: g -> elt -> elt -> elt
+  toInt' :: elt -> Type_Int
+add :: (ClassWrap2 Group g elt) =>
+       FuncTyWrap3 g elt elt elt
+add = funcWrap3 add'
+toInt :: (ClassWrap2 Group g elt) =>
+         FuncTyWrap1 elt HLCInt
+toInt = funcWrap1 toInt'
+
+
+$(generateStructDesc [structDefn|PrimeFieldElt {pfieldElt :: HLCInt} where
+                                isPassable = True
+                                constructor = primeFieldEltCons
+                                destructor = primeFieldEltDest|])
+primeFieldEltCons _ makeStructField cxt = do
+  _ <- makeStructField pfieldElt
+  return cxt
+primeFieldEltDest _ cxt = return cxt
+
+$(generateFunction [funcDefn|primeFieldAdd PrimeField -> PrimeFieldElt -> PrimeFieldElt -> PrimeFieldElt|])
+primeFieldAdd ret field lhs rhs = do
+  retVal <- makeLocalStruct type_PrimeFieldElt
+  retVal $. pfieldElt =: (((lhs%.pfieldElt) %+ (rhs%.pfieldElt)) %% (field %. order))
+  ret (lhsExpr retVal)
+
+$(generateFunction [funcDefn|primeFieldToInt PrimeFieldElt -> HLCInt|])
+primeFieldToInt ret elt = do
+  ret $ (elt %. pfieldElt)
+
+instance Group Type_PrimeField Type_PrimeFieldElt where
+  add' = call_primeFieldAdd
+  toInt' = call_primeFieldToInt
+
+makePrimeFieldElt n = do
+  elt <- makeLocalStruct type_PrimeFieldElt
+  elt $. pfieldElt =: n
+  return elt
+
+$(generateFunction [funcDefn|arithmetic HLCInt|])
+arithmetic ret = do
+  field <- makeLocalStruct type_PrimeField
+  initPrimeField field (intLit 7)
+  m <- makePrimeFieldElt (intLit 5)
+  n <- makePrimeFieldElt (intLit 2)
+  m =: add field m n
+  successStr <- stringLit "Success: 5+2=0 (mod 7)\n"
+  failStr <- stringLit "Error\n"
+  ifThenElse (toInt m %== intLit 0)
+    (do callPrintf successStr (NilArg)
+        ret (intLit 0))
+    (do callPrintf failStr (NilArg)
+        ret (intLit 1))
+
+
 
 $(generateFunction [funcDefn|test HLCVoid|])
 test ret = do
-  str <- stringLit "Hello, world!\n"
-  callPrintf str NilArg
+  str <- stringLit "Hello, world! This is an integer: %d\n"
+  n <- intLit 15
+  callPrintf str (ConsArg n NilArg)
   ret void
 
 $(generateFunction [funcDefn|fact HLCInt -> HLCInt|])
@@ -75,13 +144,16 @@ fact ret n = do
 $(generateFunction [funcDefn|hlcMain HLCInt -> HLCWeakPtr (HLCWeakPtr HLCChar) -> HLCInt|])
 hlcMain ret argc argv = do
   exprStmt $ call_test
+  exprStmt $ call_arithmetic
   ret (call_fact (intLit 3))
+
 
 main :: IO ()
 main = print $ printWholeTU (Just 'hlcMain) $ runOuterHLC $ do
   _ <- call_test
   _ <- call_fact (withType :: Type_Int)
   _ <- call_hlcMain (withType :: Type_Int) (withType :: MkWeakPtr (MkWeakPtr Type_Char))
+  _ <- call_primeFieldAdd (withType :: Type_PrimeField) (withType :: Type_PrimeFieldElt) (withType :: Type_PrimeFieldElt)
+  _ <- call_primeFieldToInt (withType :: Type_PrimeFieldElt)
+  _ <- call_arithmetic
   return ()
-  
-

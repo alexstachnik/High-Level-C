@@ -4,7 +4,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Printer.PostProcess where
+module PostProcess.SymbolRewrite where
 
 import Data.Data
 import Data.Typeable

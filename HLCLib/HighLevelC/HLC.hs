@@ -61,11 +61,6 @@ makeHLCSymbol_ safeName = do
   uid <- newUID
   return $ HLCSymbol uid safeName
 
-makeGloballyUniqueSymbol_ :: SafeName -> HLC_ HLCSymbol
-makeGloballyUniqueSymbol_ safeName = do
-  uid <- newUID
-  return $ ExactSymbol (fromSafeName safeName ++ "__" ++ show uid)
-
 lookupFunc :: FuncName -> HLC_ (Maybe HLCSymbol)
 lookupFunc x = gets funcInstances >>= (return . (fmap fst) . M.lookup x)
 
@@ -107,8 +102,9 @@ declareFunc' proxyName args (HLC func) = do
   block <- grabBlock func
   writeFuncProto $ FunctionProto retType symb args
   case (null args) && (retType == fromTW (hlcType :: TW HLCVoid)) of
-    False -> writeFunc $ FunctionDef retType symb args (addVarToBlock retVar block)
-    True -> writeFunc $ FunctionDef retType symb args block
+    False -> writeFunc $ FunctionDef retType symb args ((addVarToBlock retVar block)
+                                                        {blockRetCxt = NullContext retVar Void})
+    True -> writeFunc $ FunctionDef retType symb args (block {blockRetCxt = VoidReturn})
   return symb
     where name = getFuncName proxyName
 
