@@ -52,6 +52,7 @@ import HighLevelC.TypeSynonyms
 import HighLevelC.LangConstructs
 import IntermediateLang.ILTypes
 import PostProcess.Printer
+import PostProcess.SymbolRewrite
 import PostProcess.ObjectRewrite
 
 import Language.Haskell.TH
@@ -112,9 +113,9 @@ arithmetic ret = do
   n <- makePrimeFieldElt (intLit 2)
   m =: add field m n
   ifThenElse (toInt m %== intLit 0)
-    (do _ <- callExt1 printf (stringLit "Success: 5+2=0 (mod 7)\n") NilArg
+    (do exprStmt $ callExt1 printf (stringLit "Success: 5+2=0 (mod 7)\n") NilArg
         ret (intLit 0))
-    (do _ <- callExt1 printf (stringLit "Error\n") NilArg
+    (do exprStmt $ callExt1 printf (stringLit "Error\n") NilArg
         ret (intLit 1))
 
 
@@ -122,7 +123,7 @@ arithmetic ret = do
 $(generateFunction [funcDefn|test HLCVoid|])
 test ret = do
   n <- intLit 15
-  _ <- callExt1 printf (stringLit "Hello, world! This is an integer: %d\n") (ConsArg n NilArg)
+  exprStmt $ callExt1 printf (stringLit "Hello, world! This is an integer: %d\n") (ConsArg n NilArg)
   ret void
 
 $(generateFunction [funcDefn|fact HLCInt -> HLCInt|])
@@ -135,13 +136,16 @@ fact ret n = do
 $(generateFunction [funcDefn|hlcMain HLCInt -> HLCWeakPtr (HLCWeakPtr HLCChar) -> HLCInt|])
 hlcMain ret argc argv = do
   v <- makeLocalStruct type_Int
+  a <- allocMem type_Int (intLit 1)
+  b <- allocMem type_Int (intLit 2)
   exprStmt $ call_test
   exprStmt $ call_arithmetic
-  ret (call_fact v)
+  ret (call_fact (intLit 5))
 
 
 main :: IO ()
 main = print $ printWholeTU (Just 'hlcMain) $ runOuterHLC $ do
+--main = print $ processObjects $ processSymbols $ runOuterHLC $ do
   _ <- call_test
   _ <- call_fact (withType :: Type_Int)
   _ <- call_hlcMain (withType :: Type_Int) (withType :: MkWeakPtr (MkWeakPtr Type_Char))

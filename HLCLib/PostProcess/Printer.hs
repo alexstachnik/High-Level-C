@@ -114,16 +114,16 @@ printFuncDef :: FunctionDef -> CExternalDeclaration NodeInfo
 printFuncDef (FunctionDef {..}) =
   CFDefExt $ addSpecToFunDef (writeDecl (exactSymbolName fdefName) fdefRetType)
   (CFunDeclr (Right ((map printArg fdefArguments),False)) [] e)
-  (CCompound [] (printMainBlock fdefBody) e)
+  (CCompound [] (printMainBlock fdefBody fdefRetVar) e)
 
-printMainBlock :: HLCBlock -> [CCompoundBlockItem NodeInfo]
-printMainBlock block@(HLCBlock _ _ VoidReturn) =
+printMainBlock :: HLCBlock -> Variable -> [CCompoundBlockItem NodeInfo]
+printMainBlock block@(HLCBlock _ _ VoidReturn) fdefRetVar =
   printBlock block ++
   [returnStmt Void]
-printMainBlock block@(HLCBlock _ _ (NullContext var _)) =
+printMainBlock block fdefRetVar =
   printBlock block ++
-  [returnStmt $ LHSExpr $ LHSVar $ variableName var]
-printMainBlock x = error (show x)
+  [returnStmt $ LHSExpr $ LHSVar $ variableName fdefRetVar]
+
 
 printBlock :: HLCBlock -> [CCompoundBlockItem NodeInfo]
 printBlock (HLCBlock blockVars (StatementList blockStmts) _) =

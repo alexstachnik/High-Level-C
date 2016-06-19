@@ -20,6 +20,8 @@ import HighLevelC.TypeSynonyms
 import HighLevelC.LangConstructs
 import Util.Names
 
+import Debug.Trace
+
 newtype CounterM a = CounterM {runCounterM :: (StateT Int Identity) a}
                    deriving (Monad,Applicative,Functor,MonadState Int)
 
@@ -76,6 +78,13 @@ procStmt allDestrs destrMap symbMap stmt =
     _ -> return [stmt]
 
 
+f1 (ExactSymbol "label__17") = "HEYA"
+f1 _ = ""
+f2 (ExactSymbol "label__17") = "HEYB"
+f2 _ = ""
+f3 (ExactSymbol "label__17") = "HEYC"
+f3 _ = ""
+
 procBlock :: [HLCBlock] ->
              M.Map HLCSymbol [HLCBlock] ->
              M.Map HLCSymbol HLCSymbol ->
@@ -86,8 +95,7 @@ procBlock allDestrs destrMap symbMap block =
     (SomeContext symb) -> do
       s <- newSymbol
       newBlock <- procBlock' allDestrs (M.insert symb [] destrMap) (M.insert symb s symbMap) block
-      let newStmts = StatementList $ (++ [LabelStmt s]) $ fromStatementList $ blockStmts newBlock
-      return $ (newBlock {blockStmts = newStmts})
+      return $ appendLabel s newBlock
     _ -> procBlock' allDestrs destrMap symbMap block
       
 
@@ -98,22 +106,30 @@ procBlock' :: [HLCBlock] ->
               CounterM HLCBlock
 procBlock' allDestrs destrMap symbMap (HLCBlock {..}) = do
   constrs <- mapM (procConsDestr . variableCons) blockVars
-  destrs <- mapM (procConsDestr . variableDest) blockVars
-  let (StatementList stmts) = blockStmts
+  let destrs = map variableDest blockVars
+      (StatementList stmts) = blockStmts
       newDestrMap = M.map (destrs ++) destrMap
       newDestrList = destrs ++ allDestrs
   newBody <- mapM (procStmt newDestrList newDestrMap symbMap) $ fromStatementList blockStmts
-  let fullDestrList = case blockRetCxt of
-        (NullContext var expr) ->
-          case expr of
-            Void -> [JumpStmt (symbMap M.! endOfFunctionSymb)]
-            _ -> [AssignmentStmt (LHSVar $ variableName var) expr,
-                  JumpStmt (symbMap M.! endOfFunctionSymb)]
-        VoidReturn -> [JumpStmt (symbMap M.! endOfFunctionSymb)]
-        (SomeContext retPtr) ->
-          map BlockStmt (newDestrMap M.! retPtr) ++
-          [JumpStmt (symbMap M.! retPtr)]
-        NextLine -> map BlockStmt destrs
+  fullDestrList <- case blockRetCxt of
+    (NullContext var expr) -> do
+      blocks <- mapM procConsDestr newDestrList
+      return (map BlockStmt blocks ++
+              case expr of
+                Void -> [JumpStmt (symbMap M.! endOfFunctionSymb)]
+                _ -> [AssignmentStmt (LHSVar $ variableName var) expr,
+                      JumpStmt (symbMap M.! endOfFunctionSymb)])
+    VoidReturn -> do
+      blocks <- mapM procConsDestr newDestrList
+      return (map BlockStmt blocks ++
+                [JumpStmt (symbMap M.! endOfFunctionSymb)])
+    (SomeContext retPtr) -> do
+      blocks <- mapM procConsDestr (newDestrMap M.! retPtr)
+      return (map BlockStmt blocks  ++
+              [JumpStmt (symbMap M.! retPtr)])
+    NextLine -> do
+      blocks <- mapM procConsDestr destrs
+      return $ map BlockStmt blocks
   return (HLCBlock {blockStmts =
                     StatementList (map BlockStmt constrs ++
                                    concat newBody ++
@@ -122,9 +138,9 @@ procBlock' allDestrs destrMap symbMap (HLCBlock {..}) = do
 
 appendLabel :: HLCSymbol -> HLCBlock -> HLCBlock
 appendLabel s block =
-  let newStmtList = StatementList $ (++ [LabelStmt s]) $
-        fromStatementList $ blockStmts $ block in
-  block {blockStmts = newStmtList}
+  let newStmtList = StatementList $ (\x -> (x ++ [LabelStmt s])) $ fromStatementList $ blockStmts block
+      result = block {blockStmts = newStmtList} in
+  result
 
 procConsDestr :: HLCBlock ->
                  CounterM HLCBlock

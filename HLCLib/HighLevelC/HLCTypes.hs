@@ -161,7 +161,8 @@ data StructProto = StructProto HLCSymbol
 data FunctionDef = FunctionDef {fdefRetType :: ILType,
                                 fdefName :: HLCSymbol,
                                 fdefArguments :: [Argument],
-                                fdefBody :: HLCBlock}
+                                fdefBody :: HLCBlock,
+                                fdefRetVar :: Variable}
                  deriving (Show,Eq,Ord,Data,Typeable)
 
 data StructDef = StructDef HLCSymbol [StructField]

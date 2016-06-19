@@ -102,9 +102,8 @@ declareFunc' proxyName args (HLC func) = do
   block <- grabBlock func
   writeFuncProto $ FunctionProto retType symb args
   case (null args) && (retType == fromTW (hlcType :: TW HLCVoid)) of
-    False -> writeFunc $ FunctionDef retType symb args ((addVarToBlock retVar block)
-                                                        {blockRetCxt = NullContext retVar Void})
-    True -> writeFunc $ FunctionDef retType symb args (block {blockRetCxt = VoidReturn})
+    False -> writeFunc $ FunctionDef retType symb args (addVarToBlock retVar block) retVar
+    True -> writeFunc $ FunctionDef retType symb args (block {blockRetCxt = VoidReturn}) retVar
   return symb
     where name = getFuncName proxyName
 
