@@ -23,12 +23,19 @@ import HighLevelC.BasicTypes
 import HighLevelC.CWriter
 import HighLevelC.PrimFunctions
 import HighLevelC.Operators
+import HighLevelC.HLCCalls
 
 import Language.Haskell.TH
 
 makeWeakRef :: (RHSExpression c (HLCPtr p a)) =>
-               c -> HLC (TypedExpr (HLCWeakPtr a))
-makeWeakRef = fmap (TypedExpr . fromTypedExpr) . rhsExpr
+               c -> HLC (TypedLHS (HLCWeakPtr a))
+makeWeakRef = fmap (TypedLHSPtr . TypedExpr . fromTypedExpr) . rhsExpr
+
+freeMemHelper :: (HLCTypeable a) =>
+                 TypedLHS (HLCWeakPtr a) -> HLC_ HLCStatement
+freeMemHelper ptr = innerHLC $ do
+  expr <- callExt1 freeMem ptr NilArg
+  return $ ExpStmt $ fromTypedExpr expr
 
 allocMem :: forall a b c p.
             (Struct p a,
@@ -38,13 +45,14 @@ allocMem :: forall a b c p.
             c -> HLC (TypedLHS (HLCUniquePtr a))
 allocMem _ len = HLC $ do
   symb <- makeHLCSymbol_ "ptr"
-  numBytes <- innerHLC $ hlcMul (hlcSizeof (Proxy :: Proxy a)) (rhsExpr len)
-  mallocExpr <- callMalloc numBytes
+  let numBytes = fromIntType $ hlcMul (hlcSizeof (Proxy :: Proxy a)) (rhsExpr len)
+  mallocExpr :: TypedExpr (HLCWeakPtr HLCVoid) <- innerHLC $ callExt1 malloc numBytes NilArg
   _ <- innerHLC $ declareStruct (Proxy :: Proxy a)
   let ptrTy = fromTW (hlcType :: TW (HLCUniquePtr a))
-      ptr = TypedLHSVar $ TypedVar symb
-      consBody = AssignmentStmt (LHSVar symb) mallocExpr
-  destBody <- fmap ExpStmt ((innerHLC $ lhsExpr ptr) >>= callFree)
+      ptr = TypedLHSVar $ TypedVar symb :: TypedLHS (HLCUniquePtr a)
+      consBody = AssignmentStmt (LHSVar symb) $ fromTypedExpr mallocExpr
+  weakRef :: TypedLHS (HLCWeakPtr a) <- innerHLC $ makeWeakRef ptr
+  destBody <- freeMemHelper weakRef
   let cons = HLCBlock [] (StatementList [consBody]) NextLine
       dest = HLCBlock [] (StatementList [destBody]) NextLine
   writeVar $ Variable symb ptrTy Nothing cons dest
@@ -55,7 +63,7 @@ makePrimVar :: forall a. (HLCPrimType a) =>
                HLC (TypedLHS a)
 makePrimVar _ = HLC $ do
   symb <- makeHLCSymbol_ "primVar"
-  writePreproDirs (PreprocessorDirective "#include <stdint.h>")
+  writePreproDir (PreprocessorDirective "#include <stdint.h>")
   let ty = fromTW (hlcType :: TW a)
   writeVar $ Variable symb ty Nothing emptyBlock emptyBlock
   return $ TypedLHSVar $ TypedVar symb
@@ -67,6 +75,7 @@ makeLocalStruct _ = HLC $ do
   symb <- makeHLCSymbol_ "stVar"
   consCont <- makeHLCSymbol_ $ makeSafeName "conscont"
   destCont <- makeHLCSymbol_ $ makeSafeName "destcont"
+  writePreproDir (PreprocessorDirective "#include <stdint.h>")
   _ <- innerHLC $ declareStruct (Proxy :: Proxy structType)
   let ty = fromTW (hlcType :: TW structType)
       this = TypedVar symb

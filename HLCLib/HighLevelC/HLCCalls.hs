@@ -13,42 +13,57 @@ import HighLevelC.HLC
 import HighLevelC.HLCTypes
 import Util.Names
 
-callExt0 :: (HLCTypeable b) =>
-             ExtFunction b ->
+
+callExt0 :: (HLCTypeable r) =>
+             ExtFunction (r) ->
              VarArg ->
-             TypedExpr b
-callExt0 (ExtFunction name) NilArg =
-  TypedExpr $ FunctionCall (LHSExpr $ LHSVar name) []
-callExt0 (VarExtFunction name) varArgs =
-  TypedExpr $ FunctionCall (LHSExpr $ LHSVar name)
-  (varArgToList varArgs)
+             HLC (TypedExpr r)
+callExt0 func varArgs = do
+  HLC $ mapM_ writePreproDir $ extFunctionDirs func
+  return $ TypedExpr $ FunctionCall (LHSExpr $ LHSVar $ extFunctionName func) 
+    ([] ++
+     case func of
+       ExtFunction _ _ -> []
+       VarExtFunction _ _ -> varArgToList varArgs)
 
 
-callExt1 :: (HLCTypeable b,
-             HLCTypeable a1, Passability a1 ~ IsPassable) =>
-             ExtFunction (a1 -> b) ->
-             TypedExpr a1 ->
+callExt1 :: (HLCTypeable r,
+             RHSExpression a1 b1,
+             HLCTypeable b1, Passability b1 ~ IsPassable) =>
+             ExtFunction (b1 -> r) ->
+             a1 ->
              VarArg ->
-             TypedExpr b
-callExt1 (ExtFunction name) arg1 NilArg =
-  TypedExpr $ FunctionCall (LHSExpr $ LHSVar name) [fromTypedExpr arg1]
-callExt1 (VarExtFunction name) arg1 varArgs =
-  TypedExpr $ FunctionCall (LHSExpr $ LHSVar name)
-  ([fromTypedExpr arg1] ++ varArgToList varArgs)
+             HLC (TypedExpr r)
+callExt1 func arg1 varArgs = do
+  arg1' <- rhsExpr arg1
+  HLC $ mapM_ writePreproDir $ extFunctionDirs func
+  return $ TypedExpr $ FunctionCall (LHSExpr $ LHSVar $ extFunctionName func) 
+    ([fromTypedExpr arg1'] ++
+     case func of
+       ExtFunction _ _ -> []
+       VarExtFunction _ _ -> varArgToList varArgs)
 
-callExt2 :: (HLCTypeable b,
-             HLCTypeable a1, Passability a1 ~ IsPassable,
-             HLCTypeable a2, Passability a2 ~ IsPassable) =>
-             ExtFunction (a1 -> a2 -> b) ->
-             TypedExpr a1 ->
-             TypedExpr a2 ->
+
+callExt2 :: (HLCTypeable r,
+             RHSExpression a1 b1,
+             RHSExpression a2 b2,
+             HLCTypeable b1, Passability b1 ~ IsPassable,
+             HLCTypeable b2, Passability b2 ~ IsPassable) =>
+             ExtFunction (b1 -> b2 -> r) ->
+             a1 ->
+             a2 ->
              VarArg ->
-             TypedExpr b
-callExt2 (ExtFunction name) arg1 arg2 NilArg =
-  TypedExpr $ FunctionCall (LHSExpr $ LHSVar name) [fromTypedExpr arg1, fromTypedExpr arg2]
-callExt2 (VarExtFunction name) arg1 arg2 varArgs =
-  TypedExpr $ FunctionCall (LHSExpr $ LHSVar name)
-  ([fromTypedExpr arg1, fromTypedExpr arg2] ++ varArgToList varArgs)
+             HLC (TypedExpr r)
+callExt2 func arg1 arg2 varArgs = do
+  arg1' <- rhsExpr arg1
+  arg2' <- rhsExpr arg2
+  HLC $ mapM_ writePreproDir $ extFunctionDirs func
+  return $ TypedExpr $ FunctionCall (LHSExpr $ LHSVar $ extFunctionName func) 
+    ([fromTypedExpr arg1',fromTypedExpr arg2'] ++
+     case func of
+       ExtFunction _ _ -> []
+       VarExtFunction _ _ -> varArgToList varArgs)
+
 
 newtype ArgWrap0 r = ArgWrap0 {fromArgWrap0 :: r}
 call0 :: forall name a1 retType.

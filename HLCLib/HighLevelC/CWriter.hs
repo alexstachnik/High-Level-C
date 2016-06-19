@@ -70,5 +70,5 @@ writeFuncProto proto = tell $ mempty {functionProtos = Sq.singleton proto}
 writeStructVarDecl :: (MonadWriter CWriter m) => StructField -> m ()
 writeStructVarDecl field = tell $ mempty {structVarDecls = Sq.singleton field}
 
-writePreproDirs :: (MonadWriter CWriter m) => PreprocessorDirective -> m ()
-writePreproDirs dir = tell $ mempty {preproDirs = S.singleton dir}
+writePreproDir :: (MonadWriter CWriter m) => PreprocessorDirective -> m ()
+writePreproDir dir = tell $ mempty {preproDirs = S.singleton dir}

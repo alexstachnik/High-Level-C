@@ -296,8 +296,16 @@ data TypedLHS a where
 data VarArg = forall a . ConsArg (TypedExpr a) VarArg
             | NilArg
 
-data ExtFunction a = ExtFunction {fromExtFunction :: HLCSymbol}
-                   | VarExtFunction {fromVarExtFunction :: HLCSymbol}
+data ExtFunction a = ExtFunction HLCSymbol [PreprocessorDirective]
+                   | VarExtFunction HLCSymbol [PreprocessorDirective]
+
+extFunctionName :: ExtFunction a -> HLCSymbol
+extFunctionName (ExtFunction name _) = name
+extFunctionName (VarExtFunction name _) = name
+
+extFunctionDirs :: ExtFunction a -> [PreprocessorDirective]
+extFunctionDirs (ExtFunction _ dirs) = dirs
+extFunctionDirs (VarExtFunction _ dirs) = dirs
 
 class (HLCTypeable b) => RHSExpression a b | a -> b where
   rhsExpr :: a -> HLC (TypedExpr b)

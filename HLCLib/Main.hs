@@ -111,21 +111,18 @@ arithmetic ret = do
   m <- makePrimeFieldElt (intLit 5)
   n <- makePrimeFieldElt (intLit 2)
   m =: add field m n
-  successStr <- stringLit "Success: 5+2=0 (mod 7)\n"
-  failStr <- stringLit "Error\n"
   ifThenElse (toInt m %== intLit 0)
-    (do callPrintf successStr (NilArg)
+    (do _ <- callExt1 printf (stringLit "Success: 5+2=0 (mod 7)\n") NilArg
         ret (intLit 0))
-    (do callPrintf failStr (NilArg)
+    (do _ <- callExt1 printf (stringLit "Error\n") NilArg
         ret (intLit 1))
 
 
 
 $(generateFunction [funcDefn|test HLCVoid|])
 test ret = do
-  str <- stringLit "Hello, world! This is an integer: %d\n"
   n <- intLit 15
-  callPrintf str (ConsArg n NilArg)
+  _ <- callExt1 printf (stringLit "Hello, world! This is an integer: %d\n") (ConsArg n NilArg)
   ret void
 
 $(generateFunction [funcDefn|fact HLCInt -> HLCInt|])
@@ -137,9 +134,10 @@ fact ret n = do
 
 $(generateFunction [funcDefn|hlcMain HLCInt -> HLCWeakPtr (HLCWeakPtr HLCChar) -> HLCInt|])
 hlcMain ret argc argv = do
+  v <- makeLocalStruct type_Int
   exprStmt $ call_test
   exprStmt $ call_arithmetic
-  ret (call_fact (intLit 3))
+  ret (call_fact v)
 
 
 main :: IO ()
