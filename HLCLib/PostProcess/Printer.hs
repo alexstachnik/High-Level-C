@@ -25,6 +25,7 @@ import Text.PrettyPrint
 
 import PostProcess.SymbolRewrite
 import PostProcess.ObjectRewrite
+import PostProcess.Cleanup(cleanup)
 
 import Util.Names
 import Util.THUtil
@@ -45,7 +46,7 @@ printPreProDir (PreprocessorDirective str) = text str
 printWholeTU :: Maybe Name -> CWriter -> Doc
 printWholeTU mainFuncName cwriter =
   (vcat $ map printPreProDir (toList $ preproDirs cwriter)) $+$
-  (pretty $ printCWriter $ processObjects $ processSymbols cwriter) $+$
+  (pretty $ printCWriter $ cleanup $ processObjects $ processSymbols cwriter) $+$
   maybe empty (pretty .
                mainFunction .
                (\name -> CVar (internalIdent $ capitalize $ nameBase name))) mainFuncName
