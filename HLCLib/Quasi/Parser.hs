@@ -101,14 +101,18 @@ structTypesParser = do
   reservedOp "=>"
   return tys
 
+propertiesParser :: Parsec String u [(String,String)]
+propertiesParser = do
+  reserved "where"
+  many propertyParser
+
 structParser :: Parsec String u StructDesc
 structParser = do
   structName <- fmap mkName identifier
   tyVars <- fmap (maybe [] id) $ optionMaybe forallParser
   someTypes <- fmap (maybe [] id) $ optionMaybe structTypesParser
   fields <- braces $ commaSep fieldParser
-  reserved "where"
-  props <- many propertyParser
+  props <- fmap (maybe [] id) $ optionMaybe propertiesParser
   let isPassable = read $ maybe "True" id $ lookup "isPassable" props :: Bool
       consName = maybe 'nullConstructor (mkName) $ lookup "constructor" props
       destName = maybe 'nullDestructor (mkName) $ lookup "destructor" props

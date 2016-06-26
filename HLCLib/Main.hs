@@ -83,7 +83,7 @@ toInt :: (ClassWrap2 Group g elt) =>
 toInt = funcWrap1 toInt'
 
 
-$(generateStructDesc [structDefn|PrimeFieldElt {pfieldElt :: HLCInt} where|])
+$(generateStructDesc [structDefn|PrimeFieldElt {pfieldElt :: HLCInt}|])
 
 
 $(generateFunction [funcDefn|primeFieldAdd PrimeField -> PrimeFieldElt -> PrimeFieldElt -> PrimeFieldElt|])
