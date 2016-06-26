@@ -37,6 +37,9 @@ freeMemHelper ptr = innerHLC $ do
   expr <- callExt1 freeMem ptr NilArg
   return $ ExpStmt $ fromTypedExpr expr
 
+allocMem1 :: forall a p. (Struct p a) => Proxy a -> HLC (TypedLHS (HLCUniquePtr a))
+allocMem1 p = allocMem p (intLit 1)
+
 allocMem :: forall a b c p.
             (Struct p a,
              RHSExpression c b,
