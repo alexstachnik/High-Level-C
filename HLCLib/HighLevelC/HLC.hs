@@ -146,7 +146,7 @@ callFunc proxyName args f = do
   return $ TypedExpr $ FunctionCall (expVar symb) (map snd args)
   where name = getFuncName proxyName
 
-withType :: (HLCTypeable a) => HLC a
+withType :: (HLCTypeable a) => HLC (TypedExpr a)
 withType = return undefined
 
 exprStmt :: HLC (TypedExpr a) -> HLC ()

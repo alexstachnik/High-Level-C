@@ -147,9 +147,9 @@ main :: IO ()
 main = print $ printWholeTU (Just 'hlcMain) $ runOuterHLC $ do
 --main = print $ processObjects $ processSymbols $ runOuterHLC $ do
   _ <- call_test
-  _ <- call_fact (withType :: Type_Int)
-  _ <- call_hlcMain (withType :: Type_Int) (withType :: MkWeakPtr (MkWeakPtr Type_Char))
-  _ <- call_primeFieldAdd (withType :: Type_PrimeField) (withType :: Type_PrimeFieldElt) (withType :: Type_PrimeFieldElt)
+  _ <- call_fact withType
+  _ <- call_hlcMain withType withType
+  _ <- call_primeFieldAdd withType withType withType
   _ <- call_primeFieldToInt (withType :: Type_PrimeFieldElt)
   _ <- call_arithmetic
   return ()
