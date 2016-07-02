@@ -63,9 +63,8 @@ $(generateStructDesc [structDefn|PrimeField {order :: HLCInt} where
                                 isPassable = True
                                 constructor = primeFieldCons
                                 destructor = primeFieldDest|])
-primeFieldCons _ makeStructField cxt = do
-  p <- makeStructField order
-  p =: (intLit 2)
+primeFieldCons _ this cxt = do
+  this $. order =: (intLit 2)
   return cxt
 primeFieldDest _ cxt = return cxt
 

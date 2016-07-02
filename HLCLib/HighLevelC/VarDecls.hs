@@ -85,7 +85,7 @@ makeLocalStruct _ = HLC $ do
   cons <- grabStructBlock $ innerHLC $
     constructor
     (Proxy :: Proxy structType)
-    (\fieldName -> return $ TypedLHSElement (TypedLHSVar this) fieldName)
+    (return $ TypedLHSVar this)
     (SomeContext consCont)
   dest <- grabStructBlock $ innerHLC $
     destructor

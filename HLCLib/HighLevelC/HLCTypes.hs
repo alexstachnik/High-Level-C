@@ -137,9 +137,7 @@ type family PermissibleStruct struct field where
 
 class (HLCTypeable structType) => Struct passable structType | structType -> passable where
   constructor :: Proxy structType ->
-                 (forall fieldName fieldType.
-                  (StructFieldClass passable structType fieldName fieldType) =>
-                  Proxy fieldName -> HLC (TypedLHS fieldType)) ->
+                 HLC (TypedLHS structType) ->
                  Context ->
                  HLC Context
   destructor :: Proxy structType -> Context -> HLC Context
