@@ -1,10 +1,22 @@
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+
+
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module HighLevelC.HLC where
 
 import Control.Monad.State
@@ -116,20 +128,25 @@ makeStructField structName fieldName = do
   return $ TypedLHSVar $ TypedVar $ ExactSymbol $ fromSafeName $ getFieldName fieldName
 
 declareStruct' :: forall p structType. (Struct p structType) =>
-                  Proxy structType -> HLC_ HLCSymbol
+                  Proxy structType -> HLC_ ()
 declareStruct' proxyName = do
   symb <- makeStructSymb proxyName
   writeStructProto $ StructProto symb
   writeStruct $ StructDef symb (fieldList (Proxy :: Proxy structType))
-  return symb
+  return ()
 
 declareStruct :: forall p structType. (Struct p structType) =>
-                  Proxy structType -> HLC HLCSymbol
+                  Proxy structType -> HLC ()
 declareStruct proxyName = HLC $ do
   msymb <- lookupStruct (getStructName (Proxy :: Proxy structType))
   case msymb of
-    (Just symb) -> return symb
+    (Just symb) -> return ()
     Nothing -> declareStruct' (Proxy :: Proxy structType)
+
+instance (Struct p structType) => Instanciable structType False where
+  declareObj' _ = declareStruct (Proxy :: Proxy structType)
+  construct' _ = constructor (Proxy :: Proxy structType)
+  destruct' _ = destructor (Proxy :: Proxy structType)
 
 declareFunc :: forall name ty retType r. (HLCFunction name ty retType) =>
                Proxy name -> [Argument] -> HLC Context -> HLC HLCSymbol

@@ -87,7 +87,7 @@ $(generateStructDesc [structDefn|PrimeFieldElt {pfieldElt :: HLCInt}|])
 
 $(generateFunction [funcDefn|primeFieldAdd PrimeField -> PrimeFieldElt -> PrimeFieldElt -> PrimeFieldElt|])
 primeFieldAdd ret field lhs rhs = do
-  retVal <- makeLocalStruct type_PrimeFieldElt
+  retVal <- makeVar type_PrimeFieldElt
   retVal $. pfieldElt =: (((lhs%.pfieldElt) %+ (rhs%.pfieldElt)) %% (field %. order))
   ret (lhsExpr retVal)
 
@@ -100,13 +100,13 @@ instance Group Type_PrimeField Type_PrimeFieldElt where
   toInt' = call_primeFieldToInt
 
 makePrimeFieldElt n = do
-  elt <- makeLocalStruct type_PrimeFieldElt
+  elt <- makeVar type_PrimeFieldElt
   elt $. pfieldElt =: n
   return elt
 
 $(generateFunction [funcDefn|arithmetic HLCInt|])
 arithmetic ret = do
-  field <- makeLocalStruct type_PrimeField
+  field <- makeVar type_PrimeField
   initPrimeField field (intLit 7)
   m <- makePrimeFieldElt (intLit 5)
   n <- makePrimeFieldElt (intLit 2)
@@ -134,7 +134,7 @@ fact ret n = do
 
 $(generateFunction [funcDefn|hlcMain HLCInt -> HLCWeakPtr (HLCWeakPtr HLCChar) -> HLCInt|])
 hlcMain ret argc argv = do
-  v <- makeLocalStruct type_Int
+  v <- makeVar type_Int
   a <- allocMem type_Int (intLit 1)
   b <- allocMem type_Int (intLit 2)
   exprStmt $ call_test

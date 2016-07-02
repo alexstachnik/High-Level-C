@@ -16,20 +16,7 @@ import Data.Word
 
 import Util.Names
 
-data HLCInt
-data HLCChar
-data HLCDouble
-data HLCString
-data HLCInt8
-data HLCInt16
-data HLCInt32
-data HLCInt64
-data HLCUInt8
-data HLCUInt16
-data HLCUInt32
-data HLCUInt64
-data HLCBool
-
+type Type_Void = HLC (TypedExpr HLCVoid)
 type Type_Int = HLC (TypedExpr HLCInt)
 type Type_Char = HLC (TypedExpr HLCChar)
 type Type_Double = HLC (TypedExpr HLCDouble)
@@ -44,6 +31,7 @@ type Type_UInt32 = HLC (TypedExpr HLCUInt32)
 type Type_UInt64 = HLC (TypedExpr HLCUInt64)
 type Type_Bool = HLC (TypedExpr HLCBool)
 
+type_Void = Proxy :: Proxy HLCVoid
 type_Int = Proxy :: Proxy HLCInt
 type_Char = Proxy :: Proxy HLCChar
 type_Double = Proxy :: Proxy HLCDouble
@@ -114,72 +102,6 @@ fromIntType :: forall a b. (HLCBasicIntType a, HLCBasicIntType b) => HLC (TypedE
 fromIntType = fmap (TypedExpr . HLCCast (fromTW (hlcType :: TW b)) . fromTypedExpr)
 
 
-instance HLCPrimType HLCInt
-instance HLCPrimType HLCChar
-instance HLCPrimType HLCDouble
-instance HLCPrimType HLCString
-instance HLCPrimType HLCInt8
-instance HLCPrimType HLCInt16
-instance HLCPrimType HLCInt32
-instance HLCPrimType HLCInt64
-instance HLCPrimType HLCUInt8
-instance HLCPrimType HLCUInt16
-instance HLCPrimType HLCUInt32
-instance HLCPrimType HLCUInt64
-instance HLCPrimType HLCBool
-
-instance Struct IsPassable HLCInt where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCChar where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCDouble where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct NotPassable HLCString where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCInt8 where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCInt16 where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCInt32 where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCInt64 where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCUInt8 where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCUInt16 where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCUInt32 where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCUInt64 where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
-instance Struct IsPassable HLCBool where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
 
 instance HLCNumType HLCInt where
   hlcFromInteger = return . TypedExpr . LitExpr . IntLit

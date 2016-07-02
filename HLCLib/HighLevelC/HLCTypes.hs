@@ -1,3 +1,5 @@
+
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeOperators #-}
@@ -150,6 +152,45 @@ class (Struct passable structType,
       StructFieldClass passable structType fieldName fieldType |
   structType fieldName -> fieldType
 
+class (HLCTypeable a) => Instanciable a (b :: Bool) where
+  declareObj' :: Proxy '(a,b) -> HLC ()
+  construct' :: Proxy '(a,b) -> HLC (TypedLHS a) -> Context -> HLC Context
+  destruct' :: Proxy '(a,b) -> Context -> HLC Context
+
+instance (HLCTypeable a) => Instanciable a True where
+  declareObj' _ = return ()
+  construct' _ _ = return
+  destruct' _ = return
+
+declareObj :: forall a. (Instanciable a (IsPrimitive a)) =>
+              Proxy a -> HLC ()
+declareObj _ = declareObj' (Proxy :: Proxy '(a,IsPrimitive a))
+
+construct :: forall a. (Instanciable a (IsPrimitive a)) =>
+             Proxy a -> HLC (TypedLHS a) -> Context -> HLC Context
+construct _ = construct' (Proxy :: Proxy '(a,IsPrimitive a))
+
+destruct :: forall a. (Instanciable a (IsPrimitive a)) =>
+            Proxy a -> Context -> HLC Context
+destruct _ = destruct' (Proxy :: Proxy '(a,IsPrimitive a))
+
+type family IsPrimitive a :: Bool where
+  IsPrimitive HLCVoid = True
+  IsPrimitive HLCInt = True
+  IsPrimitive HLCChar = True
+  IsPrimitive HLCDouble = True
+  IsPrimitive HLCString = True
+  IsPrimitive HLCInt8 = True
+  IsPrimitive HLCInt16 = True
+  IsPrimitive HLCInt32 = True
+  IsPrimitive HLCInt64 = True
+  IsPrimitive HLCUInt8 = True
+  IsPrimitive HLCUInt16 = True
+  IsPrimitive HLCUInt32 = True
+  IsPrimitive HLCUInt64 = True
+  IsPrimitive HLCBool = True
+  IsPrimitive a = False
+
 data FunctionProto = FunctionProto ILType HLCSymbol [Argument]
                       deriving (Show,Eq,Ord,Data,Typeable)
 
@@ -236,12 +277,9 @@ data HLCLit = CharLit Word8
             deriving (Eq,Ord,Show,Data,Typeable)
 
 class (HLCTypeable a) => HLCBasicIntType a
-class (HLCTypeable a) => HLCPrimType a
 class (HLCTypeable a) => HLCNumType a where
   hlcFromInteger :: Integer -> HLC (TypedExpr a)
 
-
-instance (Typeable b, HLCPrimType a) => HLCPrimType (HLCPtr b a)
 
 newtype HLCPtr ptrType a = HLCPtr a deriving (Typeable)
 
@@ -325,15 +363,23 @@ instance (HLCTypeable a) => LHSExpression (TypedLHS a) a where
   hlcLHSExpr = return
 
 data HLCVoid
-type Type_Void = HLC (TypedExpr HLCVoid)
-type_Void = Proxy :: Proxy HLCVoid
 instance HLCTypeable HLCVoid where
   hlcType = TW (BaseType NotConst ILVoid)
-instance HLCPrimType HLCVoid
-instance Struct IsPassable HLCVoid where
-  constructor _ _ = return
-  destructor _ = return
-  fieldList _ = []
+
+data HLCInt
+data HLCChar
+data HLCDouble
+data HLCString
+data HLCInt8
+data HLCInt16
+data HLCInt32
+data HLCInt64
+data HLCUInt8
+data HLCUInt16
+data HLCUInt32
+data HLCUInt64
+data HLCBool
+
 
 
 untypeLHS :: TypedLHS a -> UntypedLHS
