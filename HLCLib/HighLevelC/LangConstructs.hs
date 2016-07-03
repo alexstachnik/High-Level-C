@@ -14,9 +14,8 @@ ifThenElseRest :: (RHSExpression a HLCBool) =>
                   a ->
                   (HLC Context -> HLC Context) ->
                   (HLC Context -> HLC Context) ->
-                  HLC Context ->
-                  HLC Context
-ifThenElseRest cond trueBranch falseBranch rest = HLC $ do
+                  HLC ()
+ifThenElseRest cond trueBranch falseBranch = HLC $ do
   contSymb <- makeHLCSymbol_ $ makeSafeName "ifcont"
   trueBody <- grabBlock $ innerHLC $ trueBranch
     (return $ SomeContext contSymb)
@@ -24,7 +23,6 @@ ifThenElseRest cond trueBranch falseBranch rest = HLC $ do
     (return $ SomeContext contSymb)
   condExpr <- innerHLC $ rhsExpr cond
   writeStmt (IfThenElseRestStmt (fromTypedExpr condExpr) contSymb trueBody falseBody)
-  innerHLC rest
 
 ifThenElse :: (RHSExpression a HLCBool) =>
               a ->
@@ -41,9 +39,8 @@ ifThenElse cond trueBranch falseBranch = HLC $ do
 whileRest :: (RHSExpression a HLCBool) =>
              a ->
              (HLC Context -> HLC Context -> HLC Context) ->
-             HLC Context ->
-             HLC Context
-whileRest cond body rest = HLC $ do
+             HLC ()
+whileRest cond body = HLC $ do
   breakSymb <- makeHLCSymbol_ $ makeSafeName "whilebreak"
   contSymb <- makeHLCSymbol_ $ makeSafeName "whilecont"
   body <- grabBlock $ innerHLC $ body
@@ -51,4 +48,4 @@ whileRest cond body rest = HLC $ do
     (return $ SomeContext contSymb)
   condExpr <- innerHLC $ rhsExpr cond
   writeStmt (WhileStmt (fromTypedExpr condExpr) breakSymb contSymb body)
-  innerHLC rest
+

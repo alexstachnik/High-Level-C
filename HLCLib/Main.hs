@@ -122,6 +122,17 @@ arithmetic ret = do
 $(generateFunction [funcDefn|test HLCVoid|])
 test ret = do
   n <- intLit 15
+  ifThenElseRest (intLit 15 %<= intLit 5)
+    (\c -> do
+        x <- makeVar type_Int
+        x =: intLit 12
+        c
+    )
+    (\c -> do
+        x <- makeVar type_Int
+        x =: intLit 13
+        c
+    )
   exprStmt $ callExt1 printf (stringLit "Hello, world! This is an integer: %d\n") (ConsArg n NilArg)
   ret void
 
@@ -139,7 +150,7 @@ $(generateFunction [funcDefn|hlcMain HLCInt -> HLCPtr (HLCPtr HLCChar) -> HLCInt
 hlcMain ret argc argv = do
   v <- makeVar type_Int
   argc =: v
-  --argv =: (nullPtr :: HLC (TypedExpr (HLCPtr (HLCPtr HLCChar))))
+  argv =: nullPtr
 --  a <- allocMem type_Int (intLit 1)
 --  b <- allocMem type_Int (intLit 2)
   exprStmt $ call_test
