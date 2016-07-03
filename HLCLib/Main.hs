@@ -133,6 +133,17 @@ test ret = do
         x =: intLit 13
         c
     )
+  whileStmt (intLit 3 %<= intLit 10)
+    (\break cont -> do
+        x <- makeVar type_Int
+        x =: intLit 7
+        ifThenElseRest (intLit 3 %<= intLit 10)
+          (\c -> do
+              break
+          )
+          id
+        cont
+    )
   exprStmt $ callExt1 printf (stringLit "Hello, world! This is an integer: %d\n") (ConsArg n NilArg)
   ret void
 

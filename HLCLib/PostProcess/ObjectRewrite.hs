@@ -93,9 +93,12 @@ procBlock :: [HLCBlock] ->
 procBlock allDestrs destrMap symbMap block =
   case blockRetCxt block of
     (SomeContext symb) -> do
-      s <- newSymbol
-      newBlock <- procBlock' allDestrs (M.insert symb [] destrMap) (M.insert symb s symbMap) block
-      return $ appendLabel s newBlock
+      case M.member symb symbMap of
+        True -> procBlock' allDestrs destrMap symbMap block
+        False -> do
+          s <- newSymbol
+          newBlock <- procBlock' allDestrs (M.insert symb [] destrMap) (M.insert symb s symbMap) block
+          return $ appendLabel s newBlock
     _ -> procBlock' allDestrs destrMap symbMap block
       
 
@@ -124,7 +127,9 @@ procBlock' allDestrs destrMap symbMap (HLCBlock {..}) = do
       return (map BlockStmt blocks ++
                 [JumpStmt (symbMap M.! endOfFunctionSymb)])
     (SomeContext retPtr) -> do
-      blocks <- mapM procConsDestr (newDestrMap M.! retPtr)
+      blocks <- case M.lookup retPtr newDestrMap of
+        Just blocks -> mapM procConsDestr (newDestrMap M.! retPtr)
+        Nothing -> return []
       return (map BlockStmt blocks  ++
               [JumpStmt (symbMap M.! retPtr)])
     NextLine -> do

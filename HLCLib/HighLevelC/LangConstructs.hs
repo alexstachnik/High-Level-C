@@ -36,11 +36,11 @@ ifThenElse cond trueBranch falseBranch = HLC $ do
   writeStmt (IfThenElseStmt (fromTypedExpr condExpr) trueBody falseBody)
   return NextLine
 
-whileRest :: (RHSExpression a HLCBool) =>
-             a ->
-             (HLC Context -> HLC Context -> HLC Context) ->
-             HLC ()
-whileRest cond body = HLC $ do
+whileStmt :: (RHSExpression a HLCBool) =>
+         a ->
+         (HLC Context -> HLC Context -> HLC Context) ->
+         HLC ()
+whileStmt cond body = HLC $ do
   breakSymb <- makeHLCSymbol_ $ makeSafeName "whilebreak"
   contSymb <- makeHLCSymbol_ $ makeSafeName "whilecont"
   body <- grabBlock $ innerHLC $ body
