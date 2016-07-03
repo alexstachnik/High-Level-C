@@ -1,3 +1,7 @@
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -180,58 +184,54 @@ ptrEqual lhs rhs = do
 
 
 
-
 infixl 9 %.
-
-(%.) :: (RHSExpression a structType,
-         StructFieldClass p structType fieldName fieldType,
-         Typeable fieldName) =>
-        a ->
-        Proxy fieldName ->
-        HLC (TypedExpr fieldType)
-st %. field = readElt (rhsExpr st) field
-
-rderef :: (RHSExpression c (HLCPtr a)) =>
-          c -> HLC (TypedExpr a)
-rderef = fmap (TypedExpr . LHSExpr . untypeLHS . TypedLHSDeref . TypedLHSPtr) . rhsExpr
-
 infixl 9 %@
 
-(%@) :: (RHSExpression a (HLCPtr a'),
-         RHSExpression b b',
-         HLCBasicIntType b') =>
-        a -> b -> HLC (TypedExpr a')
-(%@) ptr n = do
-  ptr' <- rhsExpr ptr
-  n' <- rhsExpr n
-  return $ TypedExpr $ LHSExpr $ untypeLHS $
-    TypedLHSDerefPlusOffset (TypedLHSPtr ptr') n'
+class LeftOrRightOp (lhs :: *) where
+  type Result (lhs :: *) (a :: *)
+  type StructType lhs
+  type PtrType lhs
+  (%.) :: (StructFieldClass p (StructType lhs) fieldName fieldType, Typeable fieldName) =>
+           lhs -> Proxy fieldName -> (Result lhs) fieldType
+  deref :: (PtrType lhs) -> Result lhs (StructType lhs)
+  (%@) :: (RHSExpression b b', HLCBasicIntType b') => (PtrType lhs) -> b -> Result lhs (StructType lhs)
 
-infixl 9 $.
 
-($.) :: (LHSExpression a structType,
-         StructFieldClass p structType fieldName fieldType) =>
-        a -> Proxy fieldName -> HLC (TypedLHS fieldType)
-($.) struct field = do
-  struct' <- hlcLHSExpr struct
-  return $ TypedLHSElement struct' field
+instance LeftOrRightOp (HLC (TypedExpr a)) where
+  type Result (HLC (TypedExpr a)) b = HLC (TypedExpr b)
+  type StructType (HLC (TypedExpr a)) = a
+  type PtrType (HLC (TypedExpr a)) = HLC (TypedExpr (HLCPtr a))
+  st %. field = readElt st field
+  deref = fmap (TypedExpr . LHSExpr . untypeLHS . TypedLHSDeref . TypedLHSPtr)
+  ptr %@ n = do
+    ptr' <- ptr
+    n' <- rhsExpr n
+    return $ TypedExpr $ LHSExpr $ untypeLHS $
+      TypedLHSDerefPlusOffset (TypedLHSPtr ptr') n'
 
-lderef :: (LHSExpression a (HLCPtr a')) =>
-          a -> HLC (TypedLHS a')
-lderef var = do
-  var' <- hlcLHSExpr var
-  return $ TypedLHSDeref var'
 
-infixl 9 $@
+instance LeftOrRightOp (HLC (TypedLHS a)) where
+  type Result (HLC (TypedLHS a)) b = HLC (TypedLHS b)
+  type StructType (HLC (TypedLHS a)) = a
+  type PtrType (HLC (TypedLHS a)) = HLC (TypedLHS (HLCPtr a))
+  struct %. field = do
+    struct' <- struct
+    return $ TypedLHSElement struct' field
+  deref var = var >>= (return . TypedLHSDeref)
+  ptr %@ n = do
+    ptr' <- ptr
+    n' <- rhsExpr n
+    return $ TypedLHSDerefPlusOffset ptr' n'
 
-($@) :: (LHSExpression a (HLCPtr a'),
-         RHSExpression b b',
-         HLCBasicIntType b') =>
-        a -> b -> HLC (TypedLHS a')
-($@) lhs rhs = do
-  lhs' <- hlcLHSExpr lhs
-  rhs' <- rhsExpr rhs
-  return $ TypedLHSDerefPlusOffset lhs' rhs'
+instance LeftOrRightOp (TypedLHS a) where
+  type Result (TypedLHS a) b = HLC (TypedLHS b)
+  type StructType (TypedLHS a) = a
+  type PtrType (TypedLHS a) = TypedLHS (HLCPtr a)
+  struct %. field = return $ TypedLHSElement struct field
+  deref var = return $ TypedLHSDeref var
+  ptr %@ n = do
+    n' <- rhsExpr n
+    return $ TypedLHSDerefPlusOffset ptr n'
 
 
 hlcNegate :: (RHSExpression a b,

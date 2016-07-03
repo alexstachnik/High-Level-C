@@ -64,12 +64,12 @@ $(generateStructDesc [structDefn|PrimeField {order :: HLCInt} where
                                 constructor = primeFieldCons
                                 destructor = primeFieldDest|])
 primeFieldCons _ this cxt = do
-  this $. order =: (intLit 2)
+  this %. order =: (intLit 2)
   return cxt
 primeFieldDest _ cxt = return cxt
 
 initPrimeField field n =
-  field $. order =: n
+  field %. order =: n
 
 class Group g elt | elt -> g where
   add' :: g -> elt -> elt -> elt
@@ -88,7 +88,7 @@ $(generateStructDesc [structDefn|PrimeFieldElt {pfieldElt :: HLCInt}|])
 $(generateFunction [funcDefn|primeFieldAdd PrimeField -> PrimeFieldElt -> PrimeFieldElt -> PrimeFieldElt|])
 primeFieldAdd ret field lhs rhs = do
   retVal <- makeVar type_PrimeFieldElt
-  retVal $. pfieldElt =: (((lhs%.pfieldElt) %+ (rhs%.pfieldElt)) %% (field %. order))
+  retVal %. pfieldElt =: (((lhs%.pfieldElt) %+ (rhs%.pfieldElt)) %% (field %. order))
   ret (lhsExpr retVal)
 
 $(generateFunction [funcDefn|primeFieldToInt PrimeFieldElt -> HLCInt|])
@@ -101,7 +101,7 @@ instance Group Type_PrimeField Type_PrimeFieldElt where
 
 makePrimeFieldElt n = do
   elt <- makeVar type_PrimeFieldElt
-  elt $. pfieldElt =: n
+  elt %. pfieldElt =: n
   return elt
 
 $(generateFunction [funcDefn|arithmetic HLCInt|])

@@ -37,6 +37,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 
 import GHC.TypeLits
+import GHC.Exts
 
 import Util.Names
 import IntermediateLang.ILTypes
@@ -340,6 +341,9 @@ class (HLCTypeable b) => RHSExpression a b | a -> b where
 instance (HLCTypeable a) => RHSExpression (HLC (TypedExpr a)) a where
   rhsExpr = id
 
+instance (HLCTypeable a) => RHSExpression (HLC (TypedLHS a)) a where
+  rhsExpr l = l >>= lhsExpr
+
 instance (HLCTypeable a) => RHSExpression (TypedLHS a) a where
   rhsExpr = lhsExpr
 
@@ -370,7 +374,7 @@ data HLCUInt32
 data HLCUInt64
 data HLCBool
 
-
+  
 
 untypeLHS :: TypedLHS a -> UntypedLHS
 untypeLHS (TypedLHSVar x) = LHSVar (fromTypedVar x)
@@ -436,3 +440,4 @@ addVarToBlock var (HLCBlock {..}) = HLCBlock {blockVars=var:blockVars,..}
 
 nullPtr :: (HLCTypeable a) => HLC (TypedExpr (HLCPtr a))
 nullPtr = return $ TypedExpr $ LitExpr $ IntLit 0
+
