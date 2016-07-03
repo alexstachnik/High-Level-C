@@ -132,11 +132,11 @@ fact ret n = do
     (ret n)
     (ret $ (n %* (call_fact (n %- intLit 1))))
 
-$(generateFunction [funcDefn|hlcMain HLCInt -> HLCWeakPtr (HLCWeakPtr HLCChar) -> HLCInt|])
+$(generateFunction [funcDefn|hlcMain HLCInt -> HLCPtr (HLCPtr HLCChar) -> HLCInt|])
 hlcMain ret argc argv = do
   v <- makeVar type_Int
-  a <- allocMem type_Int (intLit 1)
-  b <- allocMem type_Int (intLit 2)
+--  a <- allocMem type_Int (intLit 1)
+--  b <- allocMem type_Int (intLit 2)
   exprStmt $ call_test
   exprStmt $ call_arithmetic
   ret (call_fact (intLit 5))

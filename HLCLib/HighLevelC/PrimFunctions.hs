@@ -6,11 +6,11 @@ import HighLevelC.HLCTypes
 import HighLevelC.BasicTypes
 import HighLevelC.CWriter
 
-malloc :: ExtFunction (HLCInt -> HLCPtr b HLCVoid)
+malloc :: ExtFunction (HLCInt -> HLCPtr HLCVoid)
 malloc = ExtFunction (ExactSymbol "malloc") [PreprocessorDirective "#include <stdlib.h>"]
 
 
-freeMem :: ExtFunction (HLCPtr b a -> HLCVoid)
+freeMem :: ExtFunction (HLCPtr a -> HLCVoid)
 freeMem = ExtFunction (ExactSymbol "free") [PreprocessorDirective "#include <stdlib.h>"]
 
 

@@ -281,30 +281,20 @@ class (HLCTypeable a) => HLCNumType a where
   hlcFromInteger :: Integer -> HLC (TypedExpr a)
 
 
-newtype HLCPtr ptrType a = HLCPtr a deriving (Typeable)
+newtype HLCPtr a = HLCPtr a deriving (Typeable)
 
-data WeakPtr deriving (Typeable)
-data UniquePtr deriving (Typeable)
-data SmartPtr deriving (Typeable)
-
-instance (Typeable b, HLCTypeable a) => HLCTypeable (HLCPtr b a) where
+instance (HLCTypeable a) => HLCTypeable (HLCPtr a) where
   hlcType = TW $ PtrType NotConst $ fromTW (hlcType :: TW a)
 
 data IsPassable
 data NotPassable
 
 type family Passability a where
-  Passability (HLCPtr UniquePtr a) = NotPassable
-  Passability (HLCPtr SmartPtr a) = NotPassable
-  Passability (HLCPtr WeakPtr a) = IsPassable
+  Passability (HLCPtr a) = IsPassable
   Passability a = IsPassable
 
-type HLCWeakPtr a = HLCPtr WeakPtr a
-type HLCSmartPtr a = HLCPtr SmartPtr a
-type HLCUniquePtr a = HLCPtr UniquePtr a
-
-type family MkWeakPtr a where
-  MkWeakPtr (HLC (TypedExpr a)) = HLC (TypedExpr (HLCWeakPtr a))
+type family MkPtr a where
+  MkPtr (HLC (TypedExpr a)) = HLC (TypedExpr (HLCPtr a))
 
 newtype HLCArray a (arrLen :: Nat) = HLCArray a deriving (Typeable)
 
@@ -315,10 +305,10 @@ instance (HLCTypeable a, KnownNat arrLen, Typeable arrLen) => HLCTypeable (HLCAr
 
 data TypedLHS a where
   TypedLHSVar :: TypedVar a -> TypedLHS a
-  TypedLHSPtr :: TypedExpr (HLCPtr b a) -> TypedLHS (HLCPtr b a)
-  TypedLHSDeref :: TypedLHS (HLCPtr b a) -> TypedLHS a
+  TypedLHSPtr :: TypedExpr (HLCPtr a) -> TypedLHS (HLCPtr a)
+  TypedLHSDeref :: TypedLHS (HLCPtr a) -> TypedLHS a
   TypedLHSDerefPlusOffset :: (HLCBasicIntType c) =>
-                             TypedLHS (HLCPtr b a) ->
+                             TypedLHS (HLCPtr a) ->
                              TypedExpr c ->
                              TypedLHS a
   TypedLHSElement :: (Typeable fieldName,
@@ -328,7 +318,7 @@ data TypedLHS a where
                    TypedLHS (HLCArray a arrLen) ->
                    TypedExpr c ->
                    TypedLHS a
-  TypedLHSAddrOf :: TypedLHS a -> TypedLHS (HLCPtr WeakPtr a)
+  TypedLHSAddrOf :: TypedLHS a -> TypedLHS (HLCPtr a)
 
 data VarArg = forall a . ConsArg (TypedExpr a) VarArg
             | NilArg
@@ -444,3 +434,5 @@ addVarToBlock :: Variable -> HLCBlock -> HLCBlock
 addVarToBlock var (HLCBlock {..}) = HLCBlock {blockVars=var:blockVars,..}
 
 
+nullPtr :: (HLCTypeable a) => HLC (TypedExpr (HLCPtr a))
+nullPtr = return $ TypedExpr $ LitExpr $ IntLit 0

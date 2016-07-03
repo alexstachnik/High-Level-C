@@ -167,15 +167,15 @@ hlcGEQ = hlcBoolOp HLCGTEQ
          a -> b -> HLC (TypedExpr HLCBool)
 (%>=) = hlcGEQ
 
-ptrEqual :: (RHSExpression (HLCPtr p a) t, RHSExpression (HLCPtr p' b) t) =>
-            (HLCPtr p a) -> (HLCPtr p' b) -> HLC (TypedExpr HLCBool)
+ptrEqual :: (RHSExpression (HLCPtr a) t, RHSExpression (HLCPtr b) t) =>
+            (HLCPtr a) -> (HLCPtr b) -> HLC (TypedExpr HLCBool)
 ptrEqual lhs rhs = do
   lhs' <- rhsExpr lhs
   rhs' <- rhsExpr rhs
   return $ TypedExpr $ ExprBinOp HLCEqual (fromTypedExpr lhs') (fromTypedExpr rhs')
 
-(%*==) :: (RHSExpression (HLCPtr p a) t, RHSExpression (HLCPtr p' b) t) =>
-          (HLCPtr p a) -> (HLCPtr p' b) -> HLC (TypedExpr HLCBool)
+(%*==) :: (RHSExpression (HLCPtr a) t, RHSExpression (HLCPtr b) t) =>
+          (HLCPtr a) -> (HLCPtr b) -> HLC (TypedExpr HLCBool)
 (%*==) = ptrEqual
 
 
@@ -191,13 +191,13 @@ infixl 9 %.
         HLC (TypedExpr fieldType)
 st %. field = readElt (rhsExpr st) field
 
-rderef :: (RHSExpression c (HLCPtr p a)) =>
+rderef :: (RHSExpression c (HLCPtr a)) =>
           c -> HLC (TypedExpr a)
 rderef = fmap (TypedExpr . LHSExpr . untypeLHS . TypedLHSDeref . TypedLHSPtr) . rhsExpr
 
 infixl 9 %@
 
-(%@) :: (RHSExpression a (HLCPtr p a'),
+(%@) :: (RHSExpression a (HLCPtr a'),
          RHSExpression b b',
          HLCBasicIntType b') =>
         a -> b -> HLC (TypedExpr a')
@@ -216,7 +216,7 @@ infixl 9 $.
   struct' <- hlcLHSExpr struct
   return $ TypedLHSElement struct' field
 
-lderef :: (LHSExpression a (HLCPtr p a')) =>
+lderef :: (LHSExpression a (HLCPtr a')) =>
           a -> HLC (TypedLHS a')
 lderef var = do
   var' <- hlcLHSExpr var
@@ -224,7 +224,7 @@ lderef var = do
 
 infixl 9 $@
 
-($@) :: (LHSExpression a (HLCPtr p a'),
+($@) :: (LHSExpression a (HLCPtr a'),
          RHSExpression b b',
          HLCBasicIntType b') =>
         a -> b -> HLC (TypedLHS a')
@@ -253,7 +253,7 @@ hlcAbs val = do
 
 
 
-addrOf :: HLC (TypedVar a) -> HLC (TypedExpr (HLCPtr WeakPtr a))
+addrOf :: HLC (TypedVar a) -> HLC (TypedExpr (HLCPtr a))
 addrOf var = do
   var' <- var
   lhsExpr $ TypedLHSAddrOf $ TypedLHSVar var'
