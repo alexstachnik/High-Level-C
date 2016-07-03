@@ -127,14 +127,19 @@ test ret = do
 
 $(generateFunction [funcDefn|fact HLCInt -> HLCInt|])
 
+fact :: (forall a. (RHSExpression a HLCInt) => a -> HLC Context) -> TypedLHS HLCInt -> HLC Context
 fact ret n = do
   ifThenElse (n %<= intLit 1)
     (ret n)
     (ret $ (n %* (call_fact (n %- intLit 1))))
 
+z = generateFunction [funcDefn|hlcMain HLCInt -> HLCPtr (HLCPtr HLCChar) -> HLCInt|]
+
 $(generateFunction [funcDefn|hlcMain HLCInt -> HLCPtr (HLCPtr HLCChar) -> HLCInt|])
 hlcMain ret argc argv = do
   v <- makeVar type_Int
+  argc =: v
+  --argv =: (nullPtr :: HLC (TypedExpr (HLCPtr (HLCPtr HLCChar))))
 --  a <- allocMem type_Int (intLit 1)
 --  b <- allocMem type_Int (intLit 2)
   exprStmt $ call_test

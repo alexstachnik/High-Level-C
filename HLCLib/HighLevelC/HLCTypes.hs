@@ -129,7 +129,7 @@ newtype TypedVar a = TypedVar {fromTypedVar :: HLCSymbol} deriving (Eq,Ord,Show,
 class (Typeable name, HLCTypeable retType) =>
       HLCFunction name (tyWrap :: * -> *) retType |
   name -> tyWrap, name -> retType where
-  call :: Proxy name -> (HLC (TypedExpr retType) -> HLC Context) -> tyWrap (HLC Context)
+  call :: Proxy name -> (forall a. (RHSExpression a retType) => a -> HLC Context) -> tyWrap (HLC Context)
 
 type family PermissibleStruct struct field where
   PermissibleStruct IsPassable IsPassable = True

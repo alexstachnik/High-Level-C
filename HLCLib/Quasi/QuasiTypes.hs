@@ -107,8 +107,7 @@ generateFunction' funcName funcCallName (Function {..}) =
     
     argWrap =
       foldl appT (return argWrapCons) $
-      map (appT [t|HLC|]) $
-      map (appT [t|TypedExpr|]) $ map return funcArgTypes
+      map (appT [t|TypedLHS|]) $ map return funcArgTypes
 
     
     tyVars = map getTyVar funcTyParams
