@@ -59,6 +59,8 @@ import Language.Haskell.TH
 import Language.Haskell.TH as TH
 
 
+
+
 $(generateStructDesc [structDefn|PrimeField {order :: HLCInt} where
                                 isPassable = True
                                 constructor = primeFieldCons

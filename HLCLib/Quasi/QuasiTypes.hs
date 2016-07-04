@@ -131,12 +131,15 @@ generateStructDesc structDesc = do
   extFields <- mapM makeFieldName $ fields structDesc
   generateStructDesc' extFields structDesc
 
-makeFieldListStructField :: ExtField -> Q Exp
+makeFieldListStructField :: ExtField -> TypeQ
 makeFieldListStructField (ExtField name _ ty) =
-  appE (appE [e|StructField|] (appE [e|SafeName|] $ stringE $ nameBase name))
-  (appE [e|fromTW|] (sigE [e|hlcType|] (appT [t|TW|] $ return ty)))
+  appT (appT (promotedTupleT 2) (conT name)) (return ty)
 
-
+promotedListT :: [TypeQ] -> TypeQ
+promotedListT (x:xs) =
+  appT (appT promotedConsT x) $
+  promotedListT xs
+promotedListT [] = promotedNilT
 
 generateStructDesc' :: [ExtField] -> StructDesc -> Q [Dec]
 generateStructDesc' extFields (StructDesc {..}) =
@@ -149,9 +152,9 @@ generateStructDesc' extFields (StructDesc {..}) =
    map makeStructField extFields ++
    [instanceD structConstraints (appT [t|Struct|] appliedData)
     [tySynInstD (mkName "StructPassability") $ tySynEqn [appliedData] structPassability,
+     tySynInstD (mkName "StructFields") $ tySynEqn [appliedData] structFieldTyList,
      return $ ValD (VarP $ mkName "constructor") (NormalB (VarE constructor)) [],
-     return $ ValD (VarP $ mkName "destructor") (NormalB (VarE destructor)) [],
-     funD (mkName "fieldList") [clause [wildP] fieldListBody []]],
+     return $ ValD (VarP $ mkName "destructor") (NormalB (VarE destructor)) []],
     sigD constructor (forallT structTyParams structConstraints consType)] ++
    map makeAccessor extFields ++
    [sigD structProxyName (forallT structTyParams (return [])
@@ -160,8 +163,8 @@ generateStructDesc' extFields (StructDesc {..}) =
     tySynD structTypeName structTyParams (appT [t|HLC|] (appT [t|TypedExpr|] appliedData))]
   )
   where
-    fieldListBody :: BodyQ
-    fieldListBody = normalB $ listE $ map makeFieldListStructField extFields
+    structFieldTyList :: TypeQ
+    structFieldTyList = promotedListT $ map makeFieldListStructField extFields
       
     structTypeName = mkName ("Type_" ++ nameBase structName)
     

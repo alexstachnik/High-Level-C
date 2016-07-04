@@ -127,15 +127,15 @@ makeStructField structName fieldName = do
     StructField (getFieldName fieldName) (fromTW (hlcType :: TW fieldType))
   return $ TypedLHSVar $ TypedVar $ ExactSymbol $ fromSafeName $ getFieldName fieldName
 
-declareStruct' :: forall p structType. (Struct structType) =>
+declareStruct' :: forall structType. (Struct structType, GetStructFields (StructFields structType)) =>
                   Proxy structType -> HLC_ ()
 declareStruct' proxyName = do
   symb <- makeStructSymb proxyName
   writeStructProto $ StructProto symb
-  writeStruct $ StructDef symb (fieldList (Proxy :: Proxy structType))
+  writeStruct $ StructDef symb (generateStructFields (Proxy :: Proxy structType))
   return ()
 
-declareStruct :: forall p structType. (Struct structType) =>
+declareStruct :: forall structType. (Struct structType, GetStructFields (StructFields structType)) =>
                   Proxy structType -> HLC ()
 declareStruct proxyName = HLC $ do
   msymb <- lookupStruct (getStructName (Proxy :: Proxy structType))
@@ -143,7 +143,7 @@ declareStruct proxyName = HLC $ do
     (Just symb) -> return ()
     Nothing -> declareStruct' (Proxy :: Proxy structType)
 
-instance (Struct structType) => Instanciable structType False where
+instance (Struct structType, GetStructFields (StructFields structType)) => Instanciable structType False where
   declareObj' _ = declareStruct (Proxy :: Proxy structType)
   construct' _ = constructor (Proxy :: Proxy structType)
   destruct' _ = destructor (Proxy :: Proxy structType)

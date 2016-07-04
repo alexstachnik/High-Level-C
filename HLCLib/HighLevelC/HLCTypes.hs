@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# LANGUAGE FlexibleContexts #-}
@@ -28,6 +29,9 @@ import Control.Monad.Writer(WriterT,execWriterT,MonadWriter,tell,listen)
 import Control.Monad.Identity(Identity(runIdentity))
 
 import Type.Bool
+import Type.List
+import Type.Container
+import Type.Map
 
 import Data.Word
 import Data.List
@@ -143,15 +147,17 @@ type family PermissibleStruct struct field where
 
 class (HLCTypeable structType) => Struct structType where
   type StructPassability structType
+  type StructFields structType :: [(*,*)]
   constructor :: Proxy structType ->
                  HLC (TypedLHS structType) ->
                  Context ->
                  HLC Context
   destructor :: Proxy structType -> Context -> HLC Context
-  fieldList :: Proxy structType -> [StructField]
 
 class (Struct structType,
        Typeable fieldName,
+       InFstElts structType fieldName,
+       GetFieldType structType fieldName ~ fieldType,
        PermissibleStruct (StructPassability structType) (Passability fieldType) ~ True,
        HLCTypeable fieldType) =>
       StructFieldClass structType fieldName fieldType |
@@ -378,7 +384,35 @@ data HLCUInt32
 data HLCUInt64
 data HLCBool
 
-  
+class GetStructFields (fieldPairs :: [(*,*)]) where
+  getStructFields :: Proxy fieldPairs -> [StructField]
+instance GetStructFields '[] where
+  getStructFields _ = []
+instance (Typeable fieldName, HLCTypeable fieldType,
+          GetStructFields xs) =>
+         GetStructFields ( '( fieldName, fieldType ) ': xs) where
+  getStructFields _ =
+    StructField
+    (getFieldName (Proxy :: Proxy fieldName))
+    (fromTW (hlcType :: TW fieldType)) :
+    getStructFields (Proxy :: Proxy xs)
+
+generateStructFields :: forall structType.
+                        (Struct structType,
+                         GetStructFields (StructFields structType)) => Proxy structType -> [StructField]
+generateStructFields _ = getStructFields (Proxy :: Proxy (StructFields structType))
+
+type family GetFstElts (assocList :: [(*,*)]) :: [*] where
+  GetFstElts '[] = '[]
+  GetFstElts ( '(a , b) ': xs) = a ': GetFstElts xs
+
+type GetFieldType structType fieldName = MapLookup fieldName ('Map (StructFields structType))
+
+data IsAFieldOf structType fieldName
+type InFstElts structType fieldName =
+  If' (In fieldName (GetFstElts (StructFields structType)))
+  ()
+  (IsAFieldOf structType fieldName ~ ())
 
 untypeLHS :: TypedLHS a -> UntypedLHS
 untypeLHS (TypedLHSVar x) = LHSVar (fromTypedVar x)
