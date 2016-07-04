@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -25,6 +26,8 @@ import Text.PrettyPrint.HughesPJ
 import Control.Monad.State
 import Control.Monad.Writer(WriterT,execWriterT,MonadWriter,tell,listen)
 import Control.Monad.Identity(Identity(runIdentity))
+
+import Type.Bool
 
 import Data.Word
 import Data.List
@@ -138,7 +141,8 @@ type family PermissibleStruct struct field where
   PermissibleStruct NotPassable NotPassable = True
   PermissibleStruct IsPassable NotPassable = False
 
-class (HLCTypeable structType) => Struct passable structType | structType -> passable where
+class (HLCTypeable structType) => Struct structType where
+  type StructPassability structType
   constructor :: Proxy structType ->
                  HLC (TypedLHS structType) ->
                  Context ->
@@ -146,11 +150,11 @@ class (HLCTypeable structType) => Struct passable structType | structType -> pas
   destructor :: Proxy structType -> Context -> HLC Context
   fieldList :: Proxy structType -> [StructField]
 
-class (Struct passable structType,
+class (Struct structType,
        Typeable fieldName,
-       PermissibleStruct passable (Passability fieldType) ~ True,
+       PermissibleStruct (StructPassability structType) (Passability fieldType) ~ True,
        HLCTypeable fieldType) =>
-      StructFieldClass passable structType fieldName fieldType |
+      StructFieldClass structType fieldName fieldType |
   structType fieldName -> fieldType
 
 class (HLCTypeable a) => Instanciable a (b :: Bool) where
@@ -190,6 +194,7 @@ type family IsPrimitive a :: Bool where
   IsPrimitive HLCUInt32 = True
   IsPrimitive HLCUInt64 = True
   IsPrimitive HLCBool = True
+  IsPrimitive (HLCPtr a) = True
   IsPrimitive a = False
 
 data FunctionProto = FunctionProto ILType HLCSymbol [Argument]
@@ -290,9 +295,7 @@ instance (HLCTypeable a) => HLCTypeable (HLCPtr a) where
 data IsPassable
 data NotPassable
 
-type family Passability a where
-  Passability (HLCPtr a) = IsPassable
-  Passability a = IsPassable
+type Passability a = If (IsPrimitive a) IsPassable (StructPassability a)
 
 type family MkPtr a where
   MkPtr (HLC (TypedExpr a)) = HLC (TypedExpr (HLCPtr a))
@@ -313,7 +316,7 @@ data TypedLHS a where
                              TypedExpr c ->
                              TypedLHS a
   TypedLHSElement :: (Typeable fieldName,
-                      StructFieldClass p structType fieldName fieldType) =>
+                      StructFieldClass structType fieldName fieldType) =>
                      TypedLHS structType -> Proxy fieldName -> TypedLHS fieldType
   TypedLHSArrAt :: (HLCBasicIntType c) =>
                    TypedLHS (HLCArray a arrLen) ->
@@ -404,7 +407,7 @@ getFieldName :: forall a. (Typeable a) => Proxy a -> SafeName
 getFieldName _ = makeSafeName $ show $ typeRep (Proxy :: Proxy a)
 
 readElt :: forall structType fieldName fieldType p.
-           (StructFieldClass p structType fieldName fieldType, Typeable fieldName) =>
+           (StructFieldClass structType fieldName fieldType, Typeable fieldName) =>
            HLC (TypedExpr structType) ->
            Proxy fieldName ->
            HLC (TypedExpr fieldType)
@@ -419,16 +422,16 @@ expVar = LHSExpr . LHSVar
 getFuncName :: (Typeable a, HLCFunction a b c) => Proxy a -> FuncName
 getFuncName = FuncName . makeSafeName . show . typeRep
 
-getStructName :: (Struct p structType) => Proxy structType -> StructName
+getStructName :: (Struct structType) => Proxy structType -> StructName
 getStructName = StructName . makeSafeName . show . typeRep
 
-getILType :: (Struct p structType) => Proxy structType -> ILTypeName
+getILType :: (Struct structType) => Proxy structType -> ILTypeName
 getILType = ILTypeName . fromSafeName . fromStructName . getStructName
 
 getObjType :: forall a. (HLCTypeable a) => a -> ILType
 getObjType _ = fromTW (hlcType :: TW a)
 
-structHLCType :: forall a p. (Struct p a) => TW a
+structHLCType :: forall a. (Struct a) => TW a
 structHLCType = TW $ BaseType NotConst
   (ILStructRef $ getILType (Proxy :: Proxy a))
 

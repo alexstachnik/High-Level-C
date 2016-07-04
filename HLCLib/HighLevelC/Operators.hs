@@ -1,3 +1,6 @@
+
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -191,11 +194,10 @@ class LeftOrRightOp (lhs :: *) where
   type Result (lhs :: *) (a :: *)
   type StructType lhs
   type PtrType lhs
-  (%.) :: (StructFieldClass p (StructType lhs) fieldName fieldType, Typeable fieldName) =>
+  (%.) :: (StructFieldClass (StructType lhs) fieldName fieldType, Typeable fieldName) =>
            lhs -> Proxy fieldName -> (Result lhs) fieldType
   deref :: (PtrType lhs) -> Result lhs (StructType lhs)
   (%@) :: (RHSExpression b b', HLCBasicIntType b') => (PtrType lhs) -> b -> Result lhs (StructType lhs)
-
 
 instance LeftOrRightOp (HLC (TypedExpr a)) where
   type Result (HLC (TypedExpr a)) b = HLC (TypedExpr b)

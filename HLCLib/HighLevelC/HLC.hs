@@ -97,7 +97,7 @@ makeFuncSymb name var = do
   addFuncInst (getFuncName name) (symb,var)
   return symb
 
-makeStructSymb :: (Struct p structType) =>
+makeStructSymb :: (Struct structType) =>
                   Proxy structType -> HLC_ HLCSymbol
 makeStructSymb name = do
   let symb = ExactSymbol $ fromSafeName $ fromStructName $ getStructName name
@@ -119,15 +119,15 @@ declareFunc' proxyName args (HLC func) = do
   return symb
     where name = getFuncName proxyName
 
-makeStructField :: forall p structType fieldName fieldType.
-                   (StructFieldClass p structType fieldName fieldType) =>
+makeStructField :: forall structType fieldName fieldType.
+                   (StructFieldClass structType fieldName fieldType) =>
                    Proxy structType -> Proxy fieldName -> HLC_ (TypedLHS fieldType)
 makeStructField structName fieldName = do
   writeStructVarDecl $
     StructField (getFieldName fieldName) (fromTW (hlcType :: TW fieldType))
   return $ TypedLHSVar $ TypedVar $ ExactSymbol $ fromSafeName $ getFieldName fieldName
 
-declareStruct' :: forall p structType. (Struct p structType) =>
+declareStruct' :: forall p structType. (Struct structType) =>
                   Proxy structType -> HLC_ ()
 declareStruct' proxyName = do
   symb <- makeStructSymb proxyName
@@ -135,7 +135,7 @@ declareStruct' proxyName = do
   writeStruct $ StructDef symb (fieldList (Proxy :: Proxy structType))
   return ()
 
-declareStruct :: forall p structType. (Struct p structType) =>
+declareStruct :: forall p structType. (Struct structType) =>
                   Proxy structType -> HLC ()
 declareStruct proxyName = HLC $ do
   msymb <- lookupStruct (getStructName (Proxy :: Proxy structType))
@@ -143,7 +143,7 @@ declareStruct proxyName = HLC $ do
     (Just symb) -> return ()
     Nothing -> declareStruct' (Proxy :: Proxy structType)
 
-instance (Struct p structType) => Instanciable structType False where
+instance (Struct structType) => Instanciable structType False where
   declareObj' _ = declareStruct (Proxy :: Proxy structType)
   construct' _ = constructor (Proxy :: Proxy structType)
   destruct' _ = destructor (Proxy :: Proxy structType)

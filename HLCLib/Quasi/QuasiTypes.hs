@@ -116,9 +116,9 @@ getTyVar :: TyVarBndr -> Type
 getTyVar (PlainTV name) = VarT name
 getTyVar (KindedTV name _) = VarT name
 
-makeStructFieldType structPassability appliedData =
+makeStructFieldType appliedData =
   [t|forall fieldName fieldType.
-   StructFieldClass $(structPassability) $(appliedData) fieldName fieldType =>
+   StructFieldClass $(appliedData) fieldName fieldType =>
    Proxy fieldName -> HLC (TypedLHS fieldType)|]
 
 makeFieldName :: Field -> Q ExtField
@@ -136,6 +136,8 @@ makeFieldListStructField (ExtField name _ ty) =
   appE (appE [e|StructField|] (appE [e|SafeName|] $ stringE $ nameBase name))
   (appE [e|fromTW|] (sigE [e|hlcType|] (appT [t|TW|] $ return ty)))
 
+
+
 generateStructDesc' :: [ExtField] -> StructDesc -> Q [Dec]
 generateStructDesc' extFields (StructDesc {..}) =
   sequence
@@ -145,8 +147,9 @@ generateStructDesc' extFields (StructDesc {..}) =
     [return $ ValD (VarP $ mkName "hlcType") (NormalB (VarE $ mkName "structHLCType")) []]] ++
    map fieldData extFields ++
    map makeStructField extFields ++
-   [instanceD structConstraints (appT (appT [t|Struct|] structPassability) appliedData)
-    [return $ ValD (VarP $ mkName "constructor") (NormalB (VarE constructor)) [],
+   [instanceD structConstraints (appT [t|Struct|] appliedData)
+    [tySynInstD (mkName "StructPassability") $ tySynEqn [appliedData] structPassability,
+     return $ ValD (VarP $ mkName "constructor") (NormalB (VarE constructor)) [],
      return $ ValD (VarP $ mkName "destructor") (NormalB (VarE destructor)) [],
      funD (mkName "fieldList") [clause [wildP] fieldListBody []]],
     sigD constructor (forallT structTyParams structConstraints consType)] ++
@@ -184,7 +187,7 @@ generateStructDesc' extFields (StructDesc {..}) =
       (appT
        (appT
         (appT
-         (appT [t|StructFieldClass|] structPassability)
+         [t|StructFieldClass|]
          appliedData)
         (conT fieldName))
        (return ty))
