@@ -299,6 +299,7 @@ type Passability a = If (IsPrimitive a) IsPassable (StructPassability a)
 
 type family MkPtr a where
   MkPtr (HLC (TypedExpr a)) = HLC (TypedExpr (HLCPtr a))
+  MkPtr (HLC (TypedLHS a)) = HLC (TypedLHS (HLCPtr a))
 
 newtype HLCArray a (arrLen :: Nat) = HLCArray a deriving (Typeable)
 
