@@ -28,12 +28,12 @@ import HighLevelC.HLCCalls
 
 import Language.Haskell.TH
 
+type Var a = HLC (TypedLHS a)
 
 makeVar :: forall a. (HLCTypeable a,
                       Instanciable a (IsPrimitive a)) =>
-           Proxy a ->
            HLC (TypedLHS a)
-makeVar _ = HLC $ do
+makeVar = HLC $ do
   symb <- makeHLCSymbol_ "var"
   consCont <- makeHLCSymbol_ $ makeSafeName "conscont"
   destCont <- makeHLCSymbol_ $ makeSafeName "destcont"

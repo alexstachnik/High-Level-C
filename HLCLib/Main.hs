@@ -89,7 +89,7 @@ $(generateStructDesc [structDefn|PrimeFieldElt {pfieldElt :: HLCInt}|])
 
 $(generateFunction [funcDefn|primeFieldAdd PrimeField -> PrimeFieldElt -> PrimeFieldElt -> PrimeFieldElt|])
 primeFieldAdd ret field lhs rhs = do
-  retVal <- makeVar type_PrimeFieldElt
+  retVal <- makeVar :: Var PrimeFieldElt
   retVal %. pfieldElt =: (((lhs%.pfieldElt) %+ (rhs%.pfieldElt)) %% (field %. order))
   ret (lhsExpr retVal)
 
@@ -97,18 +97,18 @@ $(generateFunction [funcDefn|primeFieldToInt PrimeFieldElt -> HLCInt|])
 primeFieldToInt ret elt = do
   ret $ (elt %. pfieldElt)
 
-instance Group Type_PrimeField Type_PrimeFieldElt where
+instance Group (ExprTy PrimeField) (ExprTy PrimeFieldElt) where
   add' = call_primeFieldAdd
   toInt' = call_primeFieldToInt
 
 makePrimeFieldElt n = do
-  elt <- makeVar type_PrimeFieldElt
+  elt <- makeVar :: Var PrimeFieldElt
   elt %. pfieldElt =: n
   return elt
 
 $(generateFunction [funcDefn|arithmetic HLCInt|])
 arithmetic ret = do
-  field <- makeVar type_PrimeField
+  field <- makeVar :: Var PrimeField
   initPrimeField field (intLit 7)
   m <- makePrimeFieldElt (intLit 5)
   n <- makePrimeFieldElt (intLit 2)
@@ -126,18 +126,18 @@ test ret = do
   n <- intLit 15
   ifThenElseRest (intLit 15 %<= intLit 5)
     (\c -> do
-        x <- makeVar type_Int
+        x <- makeVar :: Var HLCInt
         x =: intLit 12
         c
     )
     (\c -> do
-        x <- makeVar type_Int
+        x <- makeVar :: Var HLCInt
         x =: intLit 13
         c
     )
   whileStmt (intLit 3 %<= intLit 10)
     (\break cont -> do
-        x <- makeVar type_Int
+        x <- makeVar :: Var HLCInt
         x =: intLit 7
         ifThenElseRest (intLit 3 %<= intLit 10)
           (\c -> do
@@ -161,7 +161,7 @@ z = generateFunction [funcDefn|hlcMain HLCInt -> HLCPtr (HLCPtr HLCChar) -> HLCI
 
 $(generateFunction [funcDefn|hlcMain HLCInt -> HLCPtr (HLCPtr HLCChar) -> HLCInt|])
 hlcMain ret argc argv = do
-  v <- makeVar type_Int
+  v <- makeVar :: Var HLCInt
   argc =: v
   argv =: nullPtr
 --  a <- allocMem type_Int (intLit 1)
@@ -178,6 +178,6 @@ main = print $ printWholeTU (Just 'hlcMain) $ runOuterHLC $ do
   _ <- call_fact withType
   _ <- call_hlcMain withType withType
   _ <- call_primeFieldAdd withType withType withType
-  _ <- call_primeFieldToInt (withType :: Type_PrimeFieldElt)
+  _ <- call_primeFieldToInt (withType :: (ExprTy PrimeFieldElt))
   _ <- call_arithmetic
   return ()

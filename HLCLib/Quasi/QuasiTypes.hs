@@ -156,11 +156,7 @@ generateStructDesc' extFields (StructDesc {..}) =
      return $ ValD (VarP $ mkName "constructor") (NormalB (VarE constructor)) [],
      return $ ValD (VarP $ mkName "destructor") (NormalB (VarE destructor)) []],
     sigD constructor (forallT structTyParams structConstraints consType)] ++
-   map makeAccessor extFields ++
-   [sigD structProxyName (forallT structTyParams (return [])
-                          (foldr appT proxyRetTy proxyTyVars)),
-    funD structProxyName [clause (map (return . const WildP) tyVars) structProxyBody []],
-    tySynD structTypeName structTyParams (appT [t|HLC|] (appT [t|TypedExpr|] appliedData))]
+   map makeAccessor extFields
   )
   where
     structFieldTyList :: TypeQ

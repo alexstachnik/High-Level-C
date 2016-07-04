@@ -414,6 +414,8 @@ type InFstElts structType fieldName =
   ()
   (IsAFieldOf structType fieldName ~ ())
 
+type ExprTy a = HLC (TypedExpr a)
+
 untypeLHS :: TypedLHS a -> UntypedLHS
 untypeLHS (TypedLHSVar x) = LHSVar (fromTypedVar x)
 untypeLHS (TypedLHSPtr x) = LHSPtr (fromTypedExpr x)
