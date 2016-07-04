@@ -157,15 +157,13 @@ fact ret n = do
     (ret n)
     (ret $ (n %* (call_fact (n %- intLit 1))))
 
-z = generateFunction [funcDefn|hlcMain HLCInt -> HLCPtr (HLCPtr HLCChar) -> HLCInt|]
-
 $(generateFunction [funcDefn|hlcMain HLCInt -> HLCPtr (HLCPtr HLCChar) -> HLCInt|])
 hlcMain ret argc argv = do
   v <- makeVar :: Var HLCInt
   argc =: v
   argv =: nullPtr
---  a <- allocMem type_Int (intLit 1)
---  b <- allocMem type_Int (intLit 2)
+  a <- allocMem (intLit 1) :: Var (HLCPtr HLCInt)
+  b <- allocMem (intLit 2) :: Var (HLCPtr PrimeFieldElt)
   exprStmt $ call_test
   exprStmt $ call_arithmetic
   ret (call_fact (intLit 5))
@@ -173,7 +171,6 @@ hlcMain ret argc argv = do
 
 main :: IO ()
 main = print $ printWholeTU (Just 'hlcMain) $ runOuterHLC $ do
---main = print $ processObjects $ processSymbols $ runOuterHLC $ do
   _ <- call_test
   _ <- call_fact withType
   _ <- call_hlcMain withType withType

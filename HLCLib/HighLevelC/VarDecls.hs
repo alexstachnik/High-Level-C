@@ -22,7 +22,6 @@ import HighLevelC.HLCTypes
 import HighLevelC.HLC
 import HighLevelC.BasicTypes
 import HighLevelC.CWriter
-import HighLevelC.PrimFunctions
 import HighLevelC.Operators
 import HighLevelC.HLCCalls
 
