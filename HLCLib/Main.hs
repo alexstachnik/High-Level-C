@@ -60,11 +60,13 @@ import Language.Haskell.TH as TH
 
 
 
-
-$(generateStructDesc [structDefn|PrimeField {order :: HLCInt} where
+$(generateStructDesc [structDefn|PrimeField {order :: HLCInt,foo :: HLCPrimArray HLCChar 3} where
                                 isPassable = True
                                 constructor = primeFieldCons
                                 destructor = primeFieldDest|])
+
+
+
 primeFieldCons _ this cxt = do
   this %. order =: (intLit 2)
   return cxt
@@ -110,6 +112,7 @@ $(generateFunction [funcDefn|arithmetic HLCInt|])
 arithmetic ret = do
   field <- makeVar :: Var PrimeField
   initPrimeField field (intLit 7)
+  q <- makeVar :: Var (HLCPrimArray HLCInt 5)
   m <- makePrimeFieldElt (intLit 5)
   n <- makePrimeFieldElt (intLit 2)
   m =: add field m n

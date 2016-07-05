@@ -163,6 +163,13 @@ class (Struct structType,
       StructFieldClass structType fieldName fieldType |
   structType fieldName -> fieldType
 
+instance (Struct structType,
+          Typeable fieldName,
+          InFstElts structType fieldName,
+          PermissibleStruct (StructPassability structType) (Passability fieldType) ~ True,
+          GetFieldType structType fieldName ~ fieldType,
+          HLCTypeable fieldType) => StructFieldClass structType fieldName fieldType
+
 class (HLCTypeable a) => Instanciable a (b :: Bool) where
   declareObj' :: Proxy '(a,b) -> HLC ()
   construct' :: Proxy '(a,b) -> HLC (TypedLHS a) -> Context -> HLC Context
@@ -201,6 +208,7 @@ type family IsPrimitive a :: Bool where
   IsPrimitive HLCUInt64 = True
   IsPrimitive HLCBool = True
   IsPrimitive (HLCPtr a) = True
+  IsPrimitive (HLCPrimArray a b) = True
   IsPrimitive a = False
 
 data FunctionProto = FunctionProto ILType HLCSymbol [Argument]
@@ -307,9 +315,10 @@ type family MkPtr a where
   MkPtr (HLC (TypedExpr a)) = HLC (TypedExpr (HLCPtr a))
   MkPtr (HLC (TypedLHS a)) = HLC (TypedLHS (HLCPtr a))
 
-newtype HLCArray a (arrLen :: Nat) = HLCArray a deriving (Typeable)
+newtype HLCPrimArray a (arrLen :: Nat) = HLCPrimArray a deriving (Typeable)
 
-instance (HLCTypeable a, KnownNat arrLen, Typeable arrLen) => HLCTypeable (HLCArray a arrLen) where
+instance (IsPrimitive a ~ True, HLCTypeable a,
+          KnownNat arrLen, Typeable arrLen) => HLCTypeable (HLCPrimArray a arrLen) where
   hlcType = case natVal (Proxy :: Proxy arrLen) of
     0 -> TW $ ArrType (fromTW (hlcType :: TW a)) Nothing
     n -> TW $ ArrType (fromTW (hlcType :: TW a)) (Just n)
@@ -326,7 +335,7 @@ data TypedLHS a where
                       StructFieldClass structType fieldName fieldType) =>
                      TypedLHS structType -> Proxy fieldName -> TypedLHS fieldType
   TypedLHSArrAt :: (HLCBasicIntType c) =>
-                   TypedLHS (HLCArray a arrLen) ->
+                   TypedLHS (HLCPrimArray a arrLen) ->
                    TypedExpr c ->
                    TypedLHS a
   TypedLHSAddrOf :: TypedLHS a -> TypedLHS (HLCPtr a)

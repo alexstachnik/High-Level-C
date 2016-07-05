@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+
 module Quasi.TypeParser where
 
 import Language.Haskell.Exts
@@ -6,13 +8,38 @@ import Language.Haskell.Exts.Extension
 import qualified Language.Haskell.TH as TH
 
 parseMode = defaultParseMode {extensions = [EnableExtension TypeOperators,
-                                            EnableExtension GADTs]}
+                                            EnableExtension GADTs,
+                                            EnableExtension DataKinds]}
 
 parseSomeType str = case parseTypeWithMode parseMode str of
   ParseOk x -> x
   (ParseFailed _ err) -> error (show err)
 
+promotedToTH :: Promoted -> TH.Type
+promotedToTH (PromotedInteger n) = TH.LitT $ TH.NumTyLit n
+promotedToTH (PromotedString str) = TH.LitT $ TH.StrTyLit str
+promotedToTH (PromotedCon _ qname) = TH.PromotedT $ TH.mkName $ prettyPrint qname
+promotedToTH (PromotedList _ (x:xs)) =
+  TH.AppT (TH.AppT TH.PromotedConsT (extTypeToTHType x)) $
+  promotedToTH (PromotedList undefined xs)
+promotedToTH (PromotedList _ []) =
+  TH.PromotedNilT
+promotedToTH (PromotedTuple tys) =
+  foldl TH.AppT (TH.PromotedTupleT (length tys)) $
+  map extTypeToTHType tys
+promotedToTH PromotedUnit = TH.PromotedTupleT 0
+
 extTypeToTHType :: Type -> TH.Type
+extTypeToTHType (TyFun arg result) = error "Function ptrs not yet implemented"
+extTypeToTHType (TyTuple _ tys) =
+  foldl TH.AppT (TH.TupleT (length tys)) $
+  map extTypeToTHType tys
+extTypeToTHType (TyInfix lhs qname rhs) =
+  TH.AppT (TH.AppT (TH.ConT $ TH.mkName $ prettyPrint qname) (extTypeToTHType lhs))
+  (extTypeToTHType rhs)
+extTypeToTHType (TyKind ty kind) = extTypeToTHType ty
+extTypeToTHType (TyPromoted prom) = promotedToTH prom
+extTypeToTHType (TyBang b ty) = extTypeToTHType ty
 extTypeToTHType (TyApp lhs rhs) = TH.AppT (extTypeToTHType lhs) (extTypeToTHType rhs)
 extTypeToTHType (TyCon name) = TH.ConT (TH.mkName $ prettyPrint name)
 extTypeToTHType (TyVar name) = TH.VarT (TH.mkName $ prettyPrint name)

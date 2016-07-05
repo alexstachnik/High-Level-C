@@ -1,5 +1,6 @@
 
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Quasi.Parser where
@@ -64,6 +65,7 @@ braces = P.braces lexer
 identifier = P.identifier lexer
 symbol = P.symbol lexer
 dot = P.dot lexer
+comma = P.comma lexer
 operator = P.operator lexer
 commaSep = P.commaSep lexer
 reservedOp = P.reservedOp lexer
@@ -76,10 +78,18 @@ forallParser = do
   _ <- dot
   return $ map (PlainTV . mkName) vars
 
+
+betweenParens :: Parsec String u String
+betweenParens = do
+  choice [parens betweenParens,
+          satisfy (/= ')') >>= (\x -> return [x])]
+    
 someTypeParser :: Parsec String u Type
 someTypeParser = do
-  someType <- many (identifier <|> operator <|> (reservedOp "~" >> return "~"))
-  return $ extTypeToTHType $ parseSomeType $ unwords someType
+  someType <- many (choice [satisfy (\x -> (x /= ',') && (x /= '}')) >>=
+                            (\x -> return [x]),
+                            parens betweenParens])
+  return $ extTypeToTHType $ parseSomeType $ concat someType
 
 fieldParser :: Parsec String u Field
 fieldParser = do

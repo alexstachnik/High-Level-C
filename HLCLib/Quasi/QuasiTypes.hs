@@ -149,7 +149,6 @@ generateStructDesc' extFields (StructDesc {..}) =
     instanceD structConstraints (appT [t|HLCTypeable|] appliedData)
     [return $ ValD (VarP $ mkName "hlcType") (NormalB (VarE $ mkName "structHLCType")) []]] ++
    map fieldData extFields ++
-   map makeStructField extFields ++
    [instanceD structConstraints (appT [t|Struct|] appliedData)
     [tySynInstD (mkName "StructPassability") $ tySynEqn [appliedData] structPassability,
      tySynInstD (mkName "StructFields") $ tySynEqn [appliedData] structFieldTyList,
