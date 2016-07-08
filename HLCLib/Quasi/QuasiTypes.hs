@@ -178,7 +178,7 @@ generateStructDesc' extFields (StructDesc {..}) =
     consType =
       (appT (appT arrowT (appT [t|Proxy|] appliedData))
        (appT (appT arrowT (appT [t|HLC|] (appT [t|TypedLHS|] appliedData)))
-              (appT (appT arrowT [t|Context|]) [t|HLC Context|])))
+              (appT (appT arrowT [t|HLC Context|]) [t|HLC Context|])))
     
     makeStructField (ExtField fieldName accName ty) =
       instanceD structConstraints

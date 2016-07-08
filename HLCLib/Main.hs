@@ -67,10 +67,10 @@ $(generateStructDesc [structDefn|PrimeField {order :: HLCInt,foo :: HLCPrimArray
 
 
 
-primeFieldCons _ this cxt = do
+primeFieldCons _ this ret = do
   this %. order =: (intLit 2)
-  return cxt
-primeFieldDest _ cxt = return cxt
+  ret
+primeFieldDest _ ret = ret
 
 initPrimeField field n =
   field %. order =: n
