@@ -48,6 +48,7 @@ makeVar = HLC $ do
   dest <- grabStructBlock $ innerHLC $
     destruct
     (Proxy :: Proxy a)
+    (return $ TypedLHSVar this)
     (return $ SomeContext destCont)
   writeVar $ Variable symb ty Nothing cons dest
   return $ TypedLHSVar this
@@ -55,7 +56,7 @@ makeVar = HLC $ do
 nullConstructor :: Proxy a -> b -> HLC Context -> HLC Context
 nullConstructor _ _ = id
 
-nullDestructor :: Proxy a -> HLC Context -> HLC Context
-nullDestructor _ = id
+nullDestructor :: Proxy a -> b -> HLC Context -> HLC Context
+nullDestructor _ _ = id
 
 

@@ -152,7 +152,10 @@ class (HLCTypeable structType) => Struct structType where
                  HLC (TypedLHS structType) ->
                  HLC Context ->
                  HLC Context
-  destructor :: Proxy structType -> HLC Context -> HLC Context
+  destructor :: Proxy structType ->
+                HLC (TypedLHS structType) ->
+                HLC Context ->
+                HLC Context
 
 class (Struct structType,
        Typeable fieldName,
@@ -173,12 +176,12 @@ instance (Struct structType,
 class (HLCTypeable a) => Instanciable a (b :: Bool) where
   declareObj' :: Proxy '(a,b) -> HLC ()
   construct' :: Proxy '(a,b) -> HLC (TypedLHS a) -> HLC Context -> HLC Context
-  destruct' :: Proxy '(a,b) -> HLC Context -> HLC Context
+  destruct' :: Proxy '(a,b) -> HLC (TypedLHS a) -> HLC Context -> HLC Context
 
 instance (HLCTypeable a) => Instanciable a True where
   declareObj' _ = return ()
   construct' _ _ = id
-  destruct' _ = id
+  destruct' _ _ = id
 
 declareObj :: forall a. (Instanciable a (IsPrimitive a)) =>
               Proxy a -> HLC ()
@@ -189,7 +192,7 @@ construct :: forall a. (Instanciable a (IsPrimitive a)) =>
 construct _ = construct' (Proxy :: Proxy '(a,IsPrimitive a))
 
 destruct :: forall a. (Instanciable a (IsPrimitive a)) =>
-            Proxy a -> HLC Context -> HLC Context
+            Proxy a -> HLC (TypedLHS a) -> HLC Context -> HLC Context
 destruct _ = destruct' (Proxy :: Proxy '(a,IsPrimitive a))
 
 type family IsPrimitive a :: Bool where
@@ -392,6 +395,8 @@ data HLCUInt16
 data HLCUInt32
 data HLCUInt64
 data HLCBool
+
+  
 
 class GetStructFields (fieldPairs :: [(*,*)]) where
   getStructFields :: Proxy fieldPairs -> [StructField]

@@ -143,10 +143,18 @@ declareStruct proxyName = HLC $ do
     (Just symb) -> return ()
     Nothing -> declareStruct' (Proxy :: Proxy structType)
 
-instance (Struct structType, GetStructFields (StructFields structType)) => Instanciable structType False where
+instance (Struct structType,
+          GetStructFields (StructFields structType),
+          StructFieldConstructors structType (StructFields structType),
+          StructFieldDestructors structType (StructFields structType)) =>
+         Instanciable structType False where
   declareObj' _ = declareStruct (Proxy :: Proxy structType)
-  construct' _ = constructor (Proxy :: Proxy structType)
-  destruct' _ = destructor (Proxy :: Proxy structType)
+  construct' _ this ret = do
+    callSubConstructors (Proxy :: Proxy '(structType,StructFields structType)) this
+    constructor (Proxy :: Proxy structType) this ret
+  destruct' _ this ret = do
+    callSubDestructors (Proxy :: Proxy '(structType,StructFields structType)) this
+    destructor (Proxy :: Proxy structType) this ret
 
 declareFunc :: forall name ty retType r. (HLCFunction name ty retType) =>
                Proxy name -> [Argument] -> HLC Context -> HLC HLCSymbol
@@ -169,4 +177,30 @@ withType = return undefined
 exprStmt :: HLC (TypedExpr a) -> HLC ()
 exprStmt = HLC . (>>= (writeStmt . ExpStmt . fromTypedExpr)) . innerHLC
 
+class (Struct structType) => StructFieldConstructors structType (fieldPairs :: [(*,*)]) where
+  callSubConstructors :: Proxy '(structType,fieldPairs) -> HLC (TypedLHS structType) -> HLC ()
+instance (Struct structType) => StructFieldConstructors structType '[] where
+  callSubConstructors _ _ = return ()
+instance (Typeable fieldName, Instanciable fieldType (IsPrimitive fieldType),
+          StructFieldConstructors structType xs,
+          StructFieldClass structType fieldName fieldType) =>
+         StructFieldConstructors structType ( '( fieldName, fieldType ) ': xs) where
+  callSubConstructors _ this = do
+    consCont <- makeHLCSymbol $ makeSafeName "subconscont"
+    x <- this
+    construct (Proxy :: Proxy fieldType) (return $ TypedLHSElement x (Proxy :: Proxy fieldName)) (return $ SomeContext consCont)
+    callSubConstructors (Proxy :: Proxy '(structType,xs)) this
 
+class (Struct structType) => StructFieldDestructors structType (fieldPairs :: [(*,*)]) where
+  callSubDestructors :: Proxy '(structType,fieldPairs) -> HLC (TypedLHS structType) -> HLC ()
+instance (Struct structType) => StructFieldDestructors structType '[] where
+  callSubDestructors _ _ = return ()
+instance (Typeable fieldName, Instanciable fieldType (IsPrimitive fieldType),
+          StructFieldDestructors structType xs,
+          StructFieldClass structType fieldName fieldType) =>
+         StructFieldDestructors structType ( '( fieldName, fieldType ) ': xs) where
+  callSubDestructors _ this = do
+    destCont <- makeHLCSymbol $ makeSafeName "subdestcont"
+    x <- this
+    destruct (Proxy :: Proxy fieldType) (return $ TypedLHSElement x (Proxy :: Proxy fieldName)) (return $ SomeContext destCont)
+    callSubDestructors (Proxy :: Proxy '(structType,xs)) this

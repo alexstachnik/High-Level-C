@@ -58,6 +58,34 @@ import PostProcess.ObjectRewrite
 import Language.Haskell.TH
 import Language.Haskell.TH as TH
 
+$(generateStructDesc [structDefn|StructA {} where
+                                isPassable = True
+                                constructor = consA
+                                destructor = destA|])
+consA _ this ret = do
+  v <- makeVar :: Var HLCInt
+  v =: intLit 3
+  ret
+
+destA _ this ret = do
+  v <- makeVar :: Var HLCInt
+  v =: intLit 4
+  ret
+
+
+$(generateStructDesc [structDefn|StructB {structBElt :: StructA} where
+                                isPassable = True
+                                constructor = consB
+                                destructor = destB|])
+consB _ this ret = do
+  v <- makeVar :: Var HLCChar
+  v =: fromIntType (intLit 5)
+  ret
+
+destB _ this ret = do
+  v <- makeVar :: Var HLCChar
+  v =: fromIntType (intLit 6)
+  ret
 
 
 $(generateStructDesc [structDefn|PrimeField {order :: HLCInt,foo :: HLCPrimArray HLCChar 3} where
@@ -70,7 +98,7 @@ $(generateStructDesc [structDefn|PrimeField {order :: HLCInt,foo :: HLCPrimArray
 primeFieldCons _ this ret = do
   this %. order =: (intLit 2)
   ret
-primeFieldDest _ ret = ret
+primeFieldDest _ this ret = ret
 
 initPrimeField field n =
   field %. order =: n
@@ -169,6 +197,8 @@ hlcMain ret argc argv = do
   b <- allocMem (intLit 2) :: Var (HLCPtr PrimeFieldElt)
   exprStmt $ call_test
   exprStmt $ call_arithmetic
+  v1 <- makeVar :: Var StructA
+  v2 <- makeVar :: Var StructB
   ret (call_fact (intLit 5))
 
 
@@ -179,5 +209,7 @@ main = print $ printWholeTU (Just 'hlcMain) $ runOuterHLC $ do
   _ <- call_hlcMain withType withType
   _ <- call_primeFieldAdd withType withType withType
   _ <- call_primeFieldToInt (withType :: (ExprTy PrimeFieldElt))
+  declareObj (Proxy :: Proxy StructA)
+  declareObj (Proxy :: Proxy StructB)
   _ <- call_arithmetic
   return ()
