@@ -51,10 +51,7 @@ import PostProcess.ObjectRewrite
 
 $(generateStructDesc [structDefn|UniquePtr forall a. {uniquePtrElt :: HLCPtr a} where
                                 isPassable = False
-                                constructor = uniqueArrCons
                                 destructor = uniqueArrDest |])
-
-uniqueArrCons _ this ret = ret
 
 makeUniquePtr :: forall a a' b.
                  (RHSExpression a a',

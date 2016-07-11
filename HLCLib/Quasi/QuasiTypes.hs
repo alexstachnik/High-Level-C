@@ -14,6 +14,7 @@ import Data.Data
 import Data.Typeable
 import HighLevelC.HLCTypes
 import HighLevelC.BasicTypes
+import HighLevelC.VarDecls
 import Util.Names
 import Language.Haskell.TH
 
@@ -155,11 +156,14 @@ generateStructDesc' extFields (StructDesc {..}) =
     [tySynInstD (mkName "StructPassability") $ tySynEqn [appliedData] structPassability,
      tySynInstD (mkName "StructFields") $ tySynEqn [appliedData] structFieldTyList,
      return $ ValD (VarP $ mkName "constructor") (NormalB (VarE constructor)) [],
-     return $ ValD (VarP $ mkName "destructor") (NormalB (VarE destructor)) []],
-    sigD constructor (forallT structTyParams structConstraints consType)] ++
+     return $ ValD (VarP $ mkName "destructor") (NormalB (VarE destructor)) []]] ++
+   consSigD ++
    map makeAccessor extFields
   )
   where
+    consSigD = case 'nullConstructor == constructor of
+      True -> []
+      False -> [sigD constructor (forallT structTyParams structConstraints consType)]
     structFieldTyList :: TypeQ
     structFieldTyList = promotedListT $ map makeFieldListStructField extFields
       
