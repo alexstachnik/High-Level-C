@@ -196,6 +196,12 @@ hlcMain ret argc argv = do
   argv =: nullPtr
   a <- makeUniquePtr (intLit 1) :: Var (UniquePtr HLCInt)
   b <- makeUniquePtr (intLit 2) :: Var (UniquePtr PrimeFieldElt)
+  c <- makeVar (HLCPtr HLCInt)
+  d <- makeUniquePtr (intLit 2) :: Var (UniquePtr HLCInt)
+  deref c =: intLit 3
+  deref (weakRef a) =: intLit 2
+  (weakRef a %@ intLit 0) =: intLit 10
+  (weakRef a %@ intLit 1) =: intLit 10
   exprStmt $ call_test
   exprStmt $ call_arithmetic
   v1 <- makeVar StructA

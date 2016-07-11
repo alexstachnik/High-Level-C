@@ -190,19 +190,17 @@ ptrEqual lhs rhs = do
 infixl 9 %.
 infixl 9 %@
 
-class LeftOrRightOp (lhs :: *) where
+class LeftOrRightOp (lhs :: *) (ptrType :: *) | lhs -> ptrType, ptrType -> lhs where
   type Result (lhs :: *) (a :: *)
   type StructType lhs
-  type PtrType lhs
   (%.) :: (StructFieldClass (StructType lhs) fieldName fieldType, Typeable fieldName) =>
            lhs -> Proxy fieldName -> (Result lhs) fieldType
-  deref :: (PtrType lhs) -> Result lhs (StructType lhs)
-  (%@) :: (RHSExpression b b', HLCBasicIntType b') => (PtrType lhs) -> b -> Result lhs (StructType lhs)
+  deref :: ptrType -> Result lhs (StructType lhs)
+  (%@) :: (RHSExpression b b', HLCBasicIntType b') => ptrType -> b -> Result lhs (StructType lhs)
 
-instance LeftOrRightOp (HLC (TypedExpr a)) where
+instance LeftOrRightOp (HLC (TypedExpr a)) (HLC (TypedExpr (HLCPtr a))) where
   type Result (HLC (TypedExpr a)) b = HLC (TypedExpr b)
   type StructType (HLC (TypedExpr a)) = a
-  type PtrType (HLC (TypedExpr a)) = HLC (TypedExpr (HLCPtr a))
   st %. field = readElt st field
   deref = fmap (TypedExpr . LHSExpr . untypeLHS . TypedLHSDeref . TypedLHSPtr)
   ptr %@ n = do
@@ -212,10 +210,9 @@ instance LeftOrRightOp (HLC (TypedExpr a)) where
       TypedLHSDerefPlusOffset (TypedLHSPtr ptr') n'
 
 
-instance LeftOrRightOp (HLC (TypedLHS a)) where
+instance LeftOrRightOp (HLC (TypedLHS a)) (HLC (TypedLHS (HLCPtr a))) where
   type Result (HLC (TypedLHS a)) b = HLC (TypedLHS b)
   type StructType (HLC (TypedLHS a)) = a
-  type PtrType (HLC (TypedLHS a)) = HLC (TypedLHS (HLCPtr a))
   struct %. field = do
     struct' <- struct
     return $ TypedLHSElement struct' field
@@ -225,10 +222,9 @@ instance LeftOrRightOp (HLC (TypedLHS a)) where
     n' <- rhsExpr n
     return $ TypedLHSDerefPlusOffset ptr' n'
 
-instance LeftOrRightOp (TypedLHS a) where
+instance LeftOrRightOp (TypedLHS a) (TypedLHS (HLCPtr a)) where
   type Result (TypedLHS a) b = HLC (TypedLHS b)
   type StructType (TypedLHS a) = a
-  type PtrType (TypedLHS a) = TypedLHS (HLCPtr a)
   struct %. field = return $ TypedLHSElement struct field
   deref var = return $ TypedLHSDeref var
   ptr %@ n = do
