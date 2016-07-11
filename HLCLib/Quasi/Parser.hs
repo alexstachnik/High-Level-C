@@ -5,6 +5,8 @@
 
 module Quasi.Parser where
 
+import Debug.Trace
+
 import Quasi.QuasiTypes
 import Quasi.TypeParser
 
@@ -126,7 +128,8 @@ structParser = do
   let isPassable = read $ maybe "True" id $ lookup "isPassable" props :: Bool
       consName = maybe 'nullConstructor (mkName) $ lookup "constructor" props
       destName = maybe 'nullDestructor (mkName) $ lookup "destructor" props
-  return $ StructDesc structName tyVars someTypes fields isPassable consName destName
+      simplyInstanciable = fmap mkName $ lookup "Simple" props :: Maybe Name
+  return $ StructDesc structName tyVars someTypes fields isPassable consName destName simplyInstanciable
 
 parseStruct :: String -> StructDesc
 parseStruct str = case parse structParser "" str of

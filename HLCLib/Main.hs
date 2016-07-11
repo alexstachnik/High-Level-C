@@ -50,6 +50,7 @@ import HighLevelC.VarDecls
 import HighLevelC.Operators
 import HighLevelC.TypeSynonyms
 import HighLevelC.LangConstructs
+import Libraries.Memory
 import IntermediateLang.ILTypes
 import PostProcess.Printer
 import PostProcess.SymbolRewrite
@@ -63,12 +64,12 @@ $(generateStructDesc [structDefn|StructA {} where
                                 constructor = consA
                                 destructor = destA|])
 consA _ this ret = do
-  v <- makeVar :: Var HLCInt
+  v <- makeVar HLCInt
   v =: intLit 3
   ret
 
 destA _ this ret = do
-  v <- makeVar :: Var HLCInt
+  v <- makeVar HLCInt
   v =: intLit 4
   ret
 
@@ -78,12 +79,12 @@ $(generateStructDesc [structDefn|StructB {structBElt :: StructA} where
                                 constructor = consB
                                 destructor = destB|])
 consB _ this ret = do
-  v <- makeVar :: Var HLCChar
+  v <- makeVar HLCChar
   v =: fromIntType (intLit 5)
   ret
 
 destB _ this ret = do
-  v <- makeVar :: Var HLCChar
+  v <- makeVar HLCChar
   v =: fromIntType (intLit 6)
   ret
 
@@ -119,7 +120,7 @@ $(generateStructDesc [structDefn|PrimeFieldElt {pfieldElt :: HLCInt}|])
 
 $(generateFunction [funcDefn|primeFieldAdd PrimeField -> PrimeFieldElt -> PrimeFieldElt -> PrimeFieldElt|])
 primeFieldAdd ret field lhs rhs = do
-  retVal <- makeVar :: Var PrimeFieldElt
+  retVal <- makeVar PrimeFieldElt
   retVal %. pfieldElt =: (((lhs%.pfieldElt) %+ (rhs%.pfieldElt)) %% (field %. order))
   ret (lhsExpr retVal)
 
@@ -132,15 +133,15 @@ instance Group (ExprTy PrimeField) (ExprTy PrimeFieldElt) where
   toInt' = call_primeFieldToInt
 
 makePrimeFieldElt n = do
-  elt <- makeVar :: Var PrimeFieldElt
+  elt <- makeVar PrimeFieldElt
   elt %. pfieldElt =: n
   return elt
 
 $(generateFunction [funcDefn|arithmetic HLCInt|])
 arithmetic ret = do
-  field <- makeVar :: Var PrimeField
+  field <- makeVar PrimeField
   initPrimeField field (intLit 7)
-  q <- makeVar :: Var (HLCPrimArray HLCInt 5)
+  q <- makeVar (HLCPrimArray HLCInt):: Var (HLCPrimArray HLCInt 5)
   m <- makePrimeFieldElt (intLit 5)
   n <- makePrimeFieldElt (intLit 2)
   m =: add field m n
@@ -157,18 +158,18 @@ test ret = do
   n <- intLit 15
   ifThenElseRest (intLit 15 %<= intLit 5)
     (\c -> do
-        x <- makeVar :: Var HLCInt
+        x <- makeVar HLCInt
         x =: intLit 12
         c
     )
     (\c -> do
-        x <- makeVar :: Var HLCInt
+        x <- makeVar HLCInt
         x =: intLit 13
         c
     )
   whileStmt (intLit 3 %<= intLit 10)
     (\break cont -> do
-        x <- makeVar :: Var HLCInt
+        x <- makeVar HLCInt
         x =: intLit 7
         ifThenElseRest (intLit 3 %<= intLit 10)
           (\c -> do
@@ -190,15 +191,15 @@ fact ret n = do
 
 $(generateFunction [funcDefn|hlcMain HLCInt -> HLCPtr (HLCPtr HLCChar) -> HLCInt|])
 hlcMain ret argc argv = do
-  v <- makeVar :: Var HLCInt
+  v <- makeVar HLCInt
   argc =: v
   argv =: nullPtr
-  a <- allocMem (intLit 1) :: Var (HLCPtr HLCInt)
-  b <- allocMem (intLit 2) :: Var (HLCPtr PrimeFieldElt)
+  a <- makeUniquePtr (intLit 1) :: Var (UniquePtr HLCInt)
+  b <- makeUniquePtr (intLit 2) :: Var (UniquePtr PrimeFieldElt)
   exprStmt $ call_test
   exprStmt $ call_arithmetic
-  v1 <- makeVar :: Var StructA
-  v2 <- makeVar :: Var StructB
+  v1 <- makeVar StructA
+  v2 <- makeVar StructB
   ret (call_fact (intLit 5))
 
 

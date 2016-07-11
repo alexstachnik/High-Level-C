@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -29,10 +31,11 @@ import Language.Haskell.TH
 
 type Var a = HLC (TypedLHS a)
 
+
 makeVar :: forall a. (HLCTypeable a,
                       Instanciable a (IsPrimitive a)) =>
-           HLC (TypedLHS a)
-makeVar = HLC $ do
+           a -> HLC (TypedLHS a)
+makeVar !_ = HLC $ do
   symb <- makeHLCSymbol_ "var"
   consCont <- makeHLCSymbol_ $ makeSafeName "conscont"
   destCont <- makeHLCSymbol_ $ makeSafeName "destcont"

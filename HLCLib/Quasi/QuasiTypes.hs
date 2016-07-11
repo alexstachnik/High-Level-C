@@ -4,6 +4,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DataKinds #-}
 
 module Quasi.QuasiTypes where
 
@@ -38,7 +39,8 @@ data StructDesc = StructDesc {structName :: Name,
                               fields :: [Field],
                               isPassable :: Bool,
                               constructor :: Name,
-                              destructor :: Name}
+                              destructor :: Name,
+                              simplyInstanciable :: Maybe Name}
             deriving (Eq,Ord,Show,Data)
 
 
@@ -144,7 +146,7 @@ promotedListT [] = promotedNilT
 generateStructDesc' :: [ExtField] -> StructDesc -> Q [Dec]
 generateStructDesc' extFields (StructDesc {..}) =
   sequence
-  ([dataD (return []) structName structTyParams [] [],
+  ([dataD (return []) structName structTyParams [normalC structName []] [],
     standaloneDerivD typeableConstraints (appT [t|Typeable|] appliedData),
     instanceD structConstraints (appT [t|HLCTypeable|] appliedData)
     [return $ ValD (VarP $ mkName "hlcType") (NormalB (VarE $ mkName "structHLCType")) []]] ++
@@ -204,10 +206,11 @@ generateStructDesc' extFields (StructDesc {..}) =
     structConstraints :: Q [Type]
     structConstraints = do
       hlcTyConstraints <- mapM (appT [t|HLCTypeable|] . return) tyVars
+      instanciableConstraints <- mapM (\t -> appT (appT [t|Instanciable|] (return t)) (appT [t|IsPrimitive|] (return t))) tyVars
       passConstraints <- case isPassable of
         True -> mapM passConstraint tyVars
         False -> return []
-      return (hlcTyConstraints ++ passConstraints ++ structTyConstraints)
+      return (hlcTyConstraints ++ instanciableConstraints ++ passConstraints ++ structTyConstraints)
     
     typeableConstraints :: Q [Type]
     typeableConstraints = mapM (appT [t|Typeable|] . return) tyVars
