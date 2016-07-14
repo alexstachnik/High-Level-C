@@ -55,7 +55,7 @@ generateFunction' funcName funcCallName (Function {..}) =
   sequence
   [dataD (return []) funcName funcTyParams [] [],
    instanceD constraints hlcFunctionClass [thisFunDecl],
-   funD funcCallName [clause [] (normalB funcCall) []],
+   funD funcCallName [funcCall],
    sigD funcBody [t|FuncType $(return retType) $(argTyList)|]]
   where
     thisFunDecl = funD (mkName "thisFun") [clause [wildP] (normalB $ varE funcBody) []]
@@ -74,7 +74,14 @@ generateFunction' funcName funcCallName (Function {..}) =
     
     appliedFunc = return $ foldl AppT unappliedFunc tyVars
 
-    funcCall = appE [e|getFunc|] (sigE [e|Proxy|] (appT [t|Proxy|] appliedFunc))
+    appliedFuncProxy = sigE [e|Proxy|] (appT [t|Proxy|] appliedFunc)
+
+    funcCall = do
+      newArgs <- mapM (const (newName "a")) funcArgTypes
+      let args = map (return . VarP) newArgs
+          body = foldl appE [e|getFunc|] (appliedFuncProxy:
+                                          map (appE [e|rhsExpr|] . varE) newArgs)
+      clause args (normalB body) []
   
 
 getTyVar :: TyVarBndr -> Type
