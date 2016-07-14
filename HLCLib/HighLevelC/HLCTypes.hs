@@ -147,6 +147,7 @@ type family OutwardFacingFun (argList :: [*]) retType where
   OutwardFacingFun (x ': xs) retType = (->) (HLC (TypedExpr x)) (OutwardFacingFun xs retType)
   OutwardFacingFun '[] retType = HLC (TypedExpr retType)
 
+type FuncType retType args = (forall a. (RHSExpression a retType) => a -> HLC Context) -> CreateFunVariableArgs args
 
 class (Typeable funName,
        HLCTypeable retType) =>

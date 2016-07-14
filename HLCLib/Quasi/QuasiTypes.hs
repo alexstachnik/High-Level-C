@@ -55,7 +55,8 @@ generateFunction' funcName funcCallName (Function {..}) =
   sequence
   [dataD (return []) funcName funcTyParams [] [],
    instanceD constraints hlcFunctionClass [thisFunDecl],
-   funD funcCallName [clause [] (normalB funcCall) []]]
+   funD funcCallName [clause [] (normalB funcCall) []],
+   sigD funcBody [t|FuncType $(return retType) $(argTyList)|]]
   where
     thisFunDecl = funD (mkName "thisFun") [clause [wildP] (normalB $ varE funcBody) []]
     

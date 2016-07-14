@@ -182,8 +182,6 @@ test ret = do
   ret void
 
 $(generateFunction [funcDefn|fact HLCInt -> HLCInt|])
-
-fact :: (forall a. (RHSExpression a HLCInt) => a -> HLC Context) -> HLC (TypedLHS HLCInt) -> HLC Context
 fact ret n = do
   ifThenElse (n %<= intLit 1)
     (ret n)
