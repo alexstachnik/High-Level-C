@@ -51,69 +51,30 @@ generateFunction func = do
   let funcCallName = mkName $ ("call_" ++) $ (nameBase $ funcBody func)
   generateFunction' funcName funcCallName func
 
-generateFunction' :: Name -> Name -> Function -> Q [Dec]
 generateFunction' funcName funcCallName (Function {..}) =
   sequence
-  ([dataD (return []) funcName funcTyParams [] [],
-    instanceD argConstraints (appT
-                              (appT (appT [t|HLCFunction|] appliedFunc)
-                               argWrap) (return retType))
-    [return $ FunD (mkName "call")
-     [Clause [WildP, (VarP $ mkName "retArg")]
-      (NormalB (AppE argWrapConsE (AppE (VarE funcBody) (VarE $ mkName "retArg"))))
-      []]],
-    sigD funcCallName
-    (forallT funcTyParams argAndPassConstraints appliedFuncTyWrap),
-    funD funcCallName
-    [clause [] (normalB (appE (varE funcWrap)
-                         (appE callExpr (sigE [e|Proxy|]
-                                         [t| Proxy $appliedFunc |])))) []]
-    ])
-
+  [dataD (return []) funcName funcTyParams [] [],
+   instanceD constraints hlcFunctionClass [thisFunDecl],
+   funD funcCallName [clause [] (normalB funcCall) []]]
   where
-    appliedFuncTyWrap = return $ foldl AppT (ConT funcTyWrap) (funcArgTypes ++ [retType])
-    funcTyWrap = mkName ("FuncTyWrap" ++ (show $ length funcArgTypes))
-    funcWrap = mkName ("funcWrap" ++ (show $ length funcArgTypes))
+    thisFunDecl = funD (mkName "thisFun") [clause [wildP] (normalB $ varE funcBody) []]
     
-    callExpr = return $ VarE $ mkName ("call" ++ (show $ length funcArgTypes))
-    
-    funcCallType :: Q Type
-    funcCallType =
-      foldr appT retHLC argArrows
-
-    argArrows :: [TypeQ]
-    argArrows = map (\var -> appT arrowT [t|HLC (TypedExpr $var)|]) (map return funcArgTypes)
-
-    retHLC :: TypeQ
-    retHLC = [t|HLC (TypedExpr $(return retType))|]
-    
-    argConstraints :: Q [Type]
-    argConstraints =
+    constraints =
       let hlcTyConstraints = map (AppT (ConT $ mkName "HLCTypeable")) tyVars in
       return (hlcTyConstraints ++ funcTyConstraints)
 
-    passConstraint :: Type -> Q Type
-    passConstraint tyvar = [t|Passability $(return tyvar) ~ IsPassable|]
+    tyVars = map getTyVar funcTyParams
 
-    argAndPassConstraints = do
-      c <- argConstraints
-      passConstraints <- mapM passConstraint tyVars
-      return (c ++ passConstraints)
-      
+    hlcFunctionClass = appT (appT (appT [t|HLCFunction|] appliedFunc) argTyList) (return retType)
+
+    argTyList = promotedListT $ map return funcArgTypes
+
     unappliedFunc = ConT funcName
     
     appliedFunc = return $ foldl AppT unappliedFunc tyVars
 
-    argWrapConsE = ConE $ mkName ("ArgWrap" ++ (show $ length funcArgTypes))
-
-    argWrapCons = ConT $ mkName ("ArgWrap" ++ (show $ length funcArgTypes))
-    
-    argWrap =
-      foldl appT (return argWrapCons) $
-      map (appT [t|TypedLHS|]) $ map return funcArgTypes
-
-    
-    tyVars = map getTyVar funcTyParams
+    funcCall = appE [e|getFunc|] (sigE [e|Proxy|] (appT [t|Proxy|] appliedFunc))
+  
 
 getTyVar :: TyVarBndr -> Type
 getTyVar (PlainTV name) = VarT name

@@ -204,3 +204,37 @@ instance (Typeable fieldName, Instanciable fieldType (IsPrimitive fieldType),
     x <- this
     destruct (Proxy :: Proxy fieldType) (return $ TypedLHSElement x (Proxy :: Proxy fieldName)) (return $ SomeContext destCont)
     callSubDestructors (Proxy :: Proxy '(structType,xs)) this
+
+
+getArgSymb (Argument name ty,_) = name
+
+instance (HLCFunction funName argList retType,
+          ApplyDummyVars (CreateFunVariableArgs argList),
+          GetArgs argList retType) => GetFunc funName argList retType where
+  getFunc proxyName =
+    let f margs = do
+          args <- sequence margs
+          callFunc proxyName args $
+            applyDummyVars (thisFun proxyName (returnContext proxyName)) $
+            map getArgSymb args in
+    getArgs (Proxy :: Proxy argList) (Proxy :: Proxy retType) [] f
+
+
+instance (HLCTypeable x, GetArgs xs retType) => GetArgs (x ': xs) retType where
+  getArgs _ _ args f mNewArg =
+    getArgs (Proxy :: Proxy xs) (Proxy :: Proxy retType)
+    (args ++ [argPair]) f
+    where argPair = do
+            d <- makeHLCSymbol $ makeSafeName "d"
+            newArg <- mNewArg
+            return (Argument d (fromTW (hlcType :: TW (TypedExpr x))),
+                    fromTypedExpr newArg)
+
+returnContext :: (HLCFunction funcName args retType) =>
+                 Proxy funcName ->
+                 (forall a. (RHSExpression a retType) => a -> HLC Context)
+returnContext proxyName retVal = do
+  (Just retVar) <- HLC $ lookupFuncRetVar $ getFuncName proxyName
+  retVal' <- rhsExpr retVal
+  return $ NullContext retVar $ fromTypedExpr retVal'
+

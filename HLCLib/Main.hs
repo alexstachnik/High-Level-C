@@ -183,7 +183,7 @@ test ret = do
 
 $(generateFunction [funcDefn|fact HLCInt -> HLCInt|])
 
-fact :: (forall a. (RHSExpression a HLCInt) => a -> HLC Context) -> TypedLHS HLCInt -> HLC Context
+fact :: (forall a. (RHSExpression a HLCInt) => a -> HLC Context) -> HLC (TypedLHS HLCInt) -> HLC Context
 fact ret n = do
   ifThenElse (n %<= intLit 1)
     (ret n)
@@ -207,6 +207,7 @@ hlcMain ret argc argv = do
   v1 <- makeVar StructA
   v2 <- makeVar StructB
   ret (call_fact (intLit 5))
+
 
 
 main :: IO ()

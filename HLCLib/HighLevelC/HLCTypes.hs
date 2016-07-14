@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MagicHash #-}
 
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -134,10 +135,49 @@ instance (HLCTypeable a) => HLCTypeable (TypedExpr a) where
 
 newtype TypedVar a = TypedVar {fromTypedVar :: HLCSymbol} deriving (Eq,Ord,Show,Data,Typeable)
 
-class (Typeable name, HLCTypeable retType) =>
-      HLCFunction name (tyWrap :: * -> *) retType |
-  name -> tyWrap, name -> retType where
-  call :: Proxy name -> (forall a. (RHSExpression a retType) => a -> HLC Context) -> tyWrap (HLC Context)
+type family CreateFunVariableArgs (argList :: [*]) :: * where
+  CreateFunVariableArgs (x ': xs) = (->) (HLC (TypedLHS x)) (CreateFunVariableArgs xs)
+  CreateFunVariableArgs '[] = HLC Context
+
+type family ArgCapture (argList :: [*]) :: * where
+  ArgCapture (x ': xs) = (->) (HLC (TypedExpr x)) (ArgCapture xs)
+  ArgCapture '[] = [HLC HLCExpr]
+
+type family OutwardFacingFun (argList :: [*]) retType where
+  OutwardFacingFun (x ': xs) retType = (->) (HLC (TypedExpr x)) (OutwardFacingFun xs retType)
+  OutwardFacingFun '[] retType = HLC (TypedExpr retType)
+
+
+class (Typeable funName,
+       HLCTypeable retType) =>
+      HLCFunction (funName :: *) (argList :: [*]) (retType :: *) |
+  funName -> argList,
+  funName -> retType where
+  thisFun :: Proxy funName ->
+             (forall a. (RHSExpression a retType) => a -> HLC Context) ->
+             CreateFunVariableArgs argList
+
+class (HLCFunction funName argList retType) => GetFunc funName (argList :: [*]) retType where
+  getFunc :: Proxy funName -> OutwardFacingFun argList retType
+
+class GetArgs (argList :: [*]) retType where
+  getArgs :: Proxy argList ->
+             Proxy retType ->
+             [HLC (Argument,HLCExpr)] ->
+             ([HLC (Argument,HLCExpr)] -> HLC (TypedExpr retType)) ->
+             OutwardFacingFun argList retType
+
+instance GetArgs '[] retType where
+  getArgs _ _ argList f = f argList
+
+class ApplyDummyVars func where
+  applyDummyVars :: func -> [HLCSymbol] -> HLC Context
+
+instance (ApplyDummyVars b) => ApplyDummyVars (HLC (TypedLHS a) -> b) where
+  applyDummyVars f (symb:rest) = applyDummyVars (f (return $ TypedLHSVar $ TypedVar symb)) rest
+
+instance ApplyDummyVars (HLC Context) where
+  applyDummyVars f [] = f
 
 type family PermissibleStruct struct field where
   PermissibleStruct IsPassable IsPassable = True
@@ -471,7 +511,7 @@ readElt struct _ = do
 expVar :: HLCSymbol -> HLCExpr
 expVar = LHSExpr . LHSVar
 
-getFuncName :: (Typeable a, HLCFunction a b c) => Proxy a -> FuncName
+getFuncName :: (Typeable name, HLCFunction name argList retType) => Proxy name -> FuncName
 getFuncName = FuncName . makeSafeName . show . typeRep
 
 getStructName :: (Struct structType) => Proxy structType -> StructName
