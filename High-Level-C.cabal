@@ -1,0 +1,43 @@
+name:                High-Level-C
+version:             0.1.0.0
+synopsis:            Linbox
+-- description:         
+homepage:            https://github.com/alexstachnik/High-Level-C
+license:             GPL-2
+license-file:        LICENSE
+author:              Linbox Team
+-- maintainer:          
+-- copyright:           
+category:            Language
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  exposed-modules:     Language.HLC.Structures.BasicStructures
+                       Language.HLC.Types.PrimeField
+                       Language.HLC.HighLevelC.CWriter
+                       Language.HLC.HighLevelC.HLC
+                       Language.HLC.HighLevelC.VarDecls
+                       Language.HLC.HighLevelC.Operators
+                       Language.HLC.HighLevelC.BasicTypes
+                       Language.HLC.HighLevelC.HLCTypes
+                       Language.HLC.HighLevelC.LangConstructs
+                       Language.HLC.HighLevelC.TypeSynonyms
+                       Language.HLC.HighLevelC.HLCCalls
+                       Language.HLC.HighLevelC.PrimFunctions
+                       Language.HLC.Quasi.TypeParser
+                       Language.HLC.Quasi.QuasiC
+                       Language.HLC.Quasi.Parser
+                       Language.HLC.Quasi.EscapeTypeDefs
+                       Language.HLC.Quasi.QuasiTypes
+                       Language.HLC.Util.Names
+                       Language.HLC.Util.THUtil
+                       Language.HLC.Libraries.Memory
+                       Language.HLC.IntermediateLang.ILTypes
+                       Language.HLC.PostProcess.SymbolRewrite
+                       Language.HLC.PostProcess.Printer
+                       Language.HLC.PostProcess.Cleanup
+                       Language.HLC.PostProcess.ObjectRewrite
+  hs-source-dirs:      src
+  -- other-modules:       
+  build-depends:       base ==4.8.*, containers >= 0.5 && < 0.6, language-c >= 0.5.0 && < 0.6, mtl>=2.2 && <2.3, parsec >= 3.1 && < 3.2, pretty >= 1.1 && < 1.2, syb >= 0.6, template-haskell >= 2.10 && < 2.11, bound-gen >= 0.1 && < 0.2, bound >= 1.0 && < 1.1, GenericPretty == 1.2.1, haskell-src-exts >= 1.15, typelevel >= 1.0.4 && < 1.1
