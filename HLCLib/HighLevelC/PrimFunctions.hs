@@ -23,7 +23,7 @@ import HighLevelC.Operators
 import HighLevelC.HLCCalls
 import HighLevelC.LangConstructs
 
-malloc :: ExtFunction '[HLCInt] (HLCPtr HLCVoid)
+malloc :: ExtFunction '[HLCInt] (HLCPtr HLCVoid) False
 malloc = ExtFunction (ExactSymbol "malloc") [PreprocessorDirective "#include <stdlib.h>"]
 
 call_malloc :: forall a intTy ptrTy.
@@ -36,7 +36,7 @@ call_malloc n =
   castPtr $ callExtFunction malloc (n' :+: HNil)
 
 
-freeMem :: ExtFunction '[HLCPtr a] HLCVoid
+freeMem :: ExtFunction '[HLCPtr a] HLCVoid False
 freeMem = ExtFunction (ExactSymbol "free") [PreprocessorDirective "#include <stdlib.h>"]
 
 call_freeMem :: forall a obj.
@@ -44,10 +44,10 @@ call_freeMem :: forall a obj.
                  HLCTypeable obj) => a -> HLC (TypedExpr HLCVoid)
 call_freeMem ptr =
   callExtFunction
-  (freeMem :: ExtFunction '[HLCPtr obj] HLCVoid)
+  (freeMem :: ExtFunction '[HLCPtr obj] HLCVoid False)
   ((rhsExpr ptr) :+: HNil)
 
-printf :: ExtFunction '[HLCString] HLCVoid
+printf :: ExtFunction '[HLCString] HLCVoid True
 printf = ExtFunction (ExactSymbol "printf") [PreprocessorDirective "#include <stdio.h>"]
 
 

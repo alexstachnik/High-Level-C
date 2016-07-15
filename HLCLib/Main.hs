@@ -146,9 +146,9 @@ arithmetic ret = do
   n <- makePrimeFieldElt (intLit 2)
   m =: add field m n
   ifThenElse (toInt m %== intLit 0)
-    (do exprStmt $ callExtFunction printf (stringLit "Success: 5+2=0 (mod 7)\n" :+: HNil)
+    (do exprStmt $ callVarFunction printf (stringLit "Success: 5+2=0 (mod 7)\n" :+: HNil)
         ret (intLit 0))
-    (do exprStmt $ callExtFunction printf (stringLit "Error\n" :+: HNil)
+    (do exprStmt $ callVarFunction printf (stringLit "Error\n" :+: HNil)
         ret (intLit 1))
 
 
@@ -177,7 +177,7 @@ test ret = do
           id
         cont
     )
-  exprStmt $ callExtFunction printf
+  exprStmt $ callVarFunction printf
     (stringLit "Hello, world! This is an integer: %d\n" :+: intLit 15 :+: HNil)
   ret void
 

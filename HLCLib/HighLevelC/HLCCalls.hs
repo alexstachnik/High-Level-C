@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -16,6 +17,9 @@
 
 
 module HighLevelC.HLCCalls where
+
+
+import Type.Bool
 
 import Data.Typeable
 
@@ -47,21 +51,28 @@ instance (ListToExpr xs) => ListToExpr (HLC (TypedLHS x) ': xs) where
 
 data SomeFunction fType retType = SomeFunction String
 
-class CallExt (fType :: [*]) retType args
-instance (CallExt b retType (HList c)) =>
-         CallExt (a ': b) retType (HList (TypedLHS a ': c))
-instance (CallExt b retType (HList c)) =>
-         CallExt (a ': b) retType (HList (HLC (TypedLHS a) ': c))
-instance (CallExt b retType (HList c)) =>
-         CallExt (a ': b) retType (HList (HLC (TypedExpr a) ': c))
-instance CallExt '[] retType any 
+class CallExt (fType :: [*]) retType args (isVariadic :: Bool)
+instance (CallExt b retType (HList c) isV) =>
+         CallExt (a ': b) retType (HList (TypedLHS a ': c)) isV
+instance (CallExt b retType (HList c) isV) =>
+         CallExt (a ': b) retType (HList (HLC (TypedLHS a) ': c)) isV
+instance (CallExt b retType (HList c) isV) =>
+         CallExt (a ': b) retType (HList (HLC (TypedExpr a) ': c)) isV
+instance CallExt '[] retType (HList '[]) False
+instance CallExt '[] retType any True
 
-y :: ExtFunction '[HLCInt,HLCChar] HLCDouble
-y = ExtFunction (ExactSymbol "foo") []
+callVarFunction :: (ListToExpr args,
+                    CallExt fType retType (HList args) True) =>
+                   ExtFunction fType retType True -> (HList args) -> HLC (TypedExpr retType)
+callVarFunction (ExtFunction symb dirs) argList = do
+  HLC $ mapM_ writePreproDir dirs
+  untypedArgs <- listToExpr' argList
+  return $ TypedExpr $ FunctionCall (LHSExpr $ LHSVar symb) untypedArgs
+
 
 callExtFunction :: (ListToExpr args,
-                    CallExt fType retType (HList args)) =>
-                   ExtFunction fType retType -> (HList args) -> HLC (TypedExpr retType)
+                    CallExt fType retType (HList args) False) =>
+                   ExtFunction fType retType False -> (HList args) -> HLC (TypedExpr retType)
 callExtFunction (ExtFunction symb dirs) argList = do
   HLC $ mapM_ writePreproDir dirs
   untypedArgs <- listToExpr' argList

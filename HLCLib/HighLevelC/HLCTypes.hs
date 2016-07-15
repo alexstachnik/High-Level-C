@@ -386,7 +386,7 @@ data TypedLHS a where
   TypedLHSAddrOf :: TypedLHS a -> TypedLHS (HLCPtr a)
 
 
-data ExtFunction (args :: [*]) retType = ExtFunction HLCSymbol [PreprocessorDirective]
+data ExtFunction (args :: [*]) retType (isVariadic :: Bool) = ExtFunction HLCSymbol [PreprocessorDirective]
 
 
 class (HLCTypeable b) => RHSExpression a b | a -> b where
