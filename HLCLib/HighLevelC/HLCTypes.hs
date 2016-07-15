@@ -252,6 +252,7 @@ type family IsPrimitive a :: Bool where
   IsPrimitive HLCUInt32 = True
   IsPrimitive HLCUInt64 = True
   IsPrimitive HLCBool = True
+  IsPrimitive (FunctionPtr a b) = True
   IsPrimitive (HLCPtr a) = True
   IsPrimitive (HLCPrimArray a b) = True
   IsPrimitive a = False
@@ -388,6 +389,33 @@ data TypedLHS a where
 
 data ExtFunction (args :: [*]) retType (isVariadic :: Bool) = ExtFunction HLCSymbol [PreprocessorDirective]
 
+data FunctionPtr (args :: [*]) retType = FunctionPtr deriving (Typeable)
+
+class TypeableList (tys :: [*]) where
+  getTys :: Proxy tys -> [ILType]
+instance (TypeableList xs, HLCTypeable x) => TypeableList (x ': xs) where
+  getTys _ = fromTW (hlcType :: TW x) : getTys (Proxy :: Proxy xs)
+instance TypeableList '[] where
+  getTys _ = []
+  
+instance (TypeableList args,
+          HLCTypeable retType,
+          Typeable (FunctionPtr args retType)) =>
+         HLCTypeable (FunctionPtr args retType) where
+  hlcType =
+    let ilRetType = fromTW (hlcType :: TW retType)
+        ilArgs = getTys (Proxy :: Proxy args)
+    in
+    TW (PtrType NotConst (FuncType ilRetType ilArgs))
+
+addrOfExtFunc :: ExtFunction args retType False -> HLC (TypedExpr (FunctionPtr args retType))
+addrOfExtFunc (ExtFunction symb _) = return $ TypedExpr $ LHSExpr $ LHSAddrOf $ LHSVar symb
+
+addrOfFunc :: (HLCFunction fname argList retType) =>
+              Proxy fname -> HLC (TypedExpr (FunctionPtr argList retType))
+addrOfFunc proxyName =
+  return $ TypedExpr $ LHSExpr $ LHSAddrOf $
+  LHSVar $ ExactSymbol $ fromSafeName $ fromFuncName $ getFuncName proxyName
 
 class (HLCTypeable b) => RHSExpression a b | a -> b where
   rhsExpr :: a -> HLC (TypedExpr b)

@@ -78,3 +78,11 @@ callExtFunction (ExtFunction symb dirs) argList = do
   untypedArgs <- listToExpr' argList
   return $ TypedExpr $ FunctionCall (LHSExpr $ LHSVar symb) untypedArgs
 
+callFunPtr :: (ListToExpr argList,
+               CallExt fargs retType (HList argList) False,
+               RHSExpression a (FunctionPtr fargs retType)) =>
+              a -> (HList argList) -> HLC (TypedExpr retType)
+callFunPtr ptr argList = do
+  ptr' <- rhsExpr ptr
+  untypedArgs <- listToExpr' argList
+  return $ TypedExpr $ FunctionCall (LHSExpr $ LHSDeref $ LHSPtr (fromTypedExpr ptr')) untypedArgs

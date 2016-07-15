@@ -204,6 +204,9 @@ hlcMain ret argc argv = do
   exprStmt $ call_arithmetic
   v1 <- makeVar StructA
   v2 <- makeVar StructB
+  v3 <- makeVar (FunctionPtr :: FunctionPtr '[HLCInt] HLCInt)
+  v3 =: addrOfFunc (Proxy :: Proxy Fact)
+  exprStmt $ callFunPtr v3 (intLit 4 :+: HNil)
   ret (call_fact (intLit 5))
 
 
