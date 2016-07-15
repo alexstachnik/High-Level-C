@@ -20,7 +20,7 @@
 module HighLevelC.HLC where
 
 import Control.Monad.State
-import Control.Monad.Writer(WriterT,execWriterT,MonadWriter,tell,listen)
+import Control.Monad.Writer
 import Control.Monad.Identity(Identity(runIdentity))
 
 import Language.C.Syntax.AST(CExtDecl)
@@ -58,6 +58,13 @@ runInnerHLC c =
 
 runOuterHLC :: HLC () -> CWriter
 runOuterHLC = runInnerHLC . innerHLC
+
+debugHLC :: HLC_ a -> a
+debugHLC c =
+  fst $ runIdentity $ evalStateT (runWriterT $ runHLC_ c) initState
+
+debugOuterHLC :: HLC a -> a
+debugOuterHLC =  debugHLC . innerHLC
 
 newUID :: HLC_ Integer
 newUID = do

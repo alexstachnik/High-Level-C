@@ -385,19 +385,9 @@ data TypedLHS a where
                    TypedLHS a
   TypedLHSAddrOf :: TypedLHS a -> TypedLHS (HLCPtr a)
 
-data VarArg = forall a . ConsArg (TypedExpr a) VarArg
-            | NilArg
 
-data ExtFunction a = ExtFunction HLCSymbol [PreprocessorDirective]
-                   | VarExtFunction HLCSymbol [PreprocessorDirective]
+data ExtFunction (args :: [*]) retType = ExtFunction HLCSymbol [PreprocessorDirective]
 
-extFunctionName :: ExtFunction a -> HLCSymbol
-extFunctionName (ExtFunction name _) = name
-extFunctionName (VarExtFunction name _) = name
-
-extFunctionDirs :: ExtFunction a -> [PreprocessorDirective]
-extFunctionDirs (ExtFunction _ dirs) = dirs
-extFunctionDirs (VarExtFunction _ dirs) = dirs
 
 class (HLCTypeable b) => RHSExpression a b | a -> b where
   rhsExpr :: a -> HLC (TypedExpr b)
@@ -489,12 +479,6 @@ lhsExpr = return . TypedExpr . LHSExpr . untypeLHS
 
 lhsVar :: TypedLHS (TypedVar a) -> HLC (TypedExpr a)
 lhsVar = return . TypedExpr . LHSExpr . untypeLHS
-
-varArgToList :: VarArg -> [HLCExpr]
-varArgToList NilArg = []
-varArgToList (ConsArg typedExpr rest) =
-  fromTypedExpr typedExpr :
-  varArgToList rest
 
 getFieldName :: forall a. (Typeable a) => Proxy a -> SafeName
 getFieldName _ = makeSafeName $ show $ typeRep (Proxy :: Proxy a)

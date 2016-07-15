@@ -146,16 +146,15 @@ arithmetic ret = do
   n <- makePrimeFieldElt (intLit 2)
   m =: add field m n
   ifThenElse (toInt m %== intLit 0)
-    (do exprStmt $ callExt1 printf (stringLit "Success: 5+2=0 (mod 7)\n") NilArg
+    (do exprStmt $ callExtFunction printf (stringLit "Success: 5+2=0 (mod 7)\n" :+: HNil)
         ret (intLit 0))
-    (do exprStmt $ callExt1 printf (stringLit "Error\n") NilArg
+    (do exprStmt $ callExtFunction printf (stringLit "Error\n" :+: HNil)
         ret (intLit 1))
 
 
 
 $(generateFunction [funcDefn|test HLCVoid|])
 test ret = do
-  n <- intLit 15
   ifThenElseRest (intLit 15 %<= intLit 5)
     (\c -> do
         x <- makeVar HLCInt
@@ -178,7 +177,8 @@ test ret = do
           id
         cont
     )
-  exprStmt $ callExt1 printf (stringLit "Hello, world! This is an integer: %d\n") (ConsArg n NilArg)
+  exprStmt $ callExtFunction printf
+    (stringLit "Hello, world! This is an integer: %d\n" :+: intLit 15 :+: HNil)
   ret void
 
 $(generateFunction [funcDefn|fact HLCInt -> HLCInt|])

@@ -1,67 +1,69 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE FlexibleContexts #-}
-
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
+
 
 module HighLevelC.HLCCalls where
 
 import Data.Typeable
+
+import HighLevelC.BasicTypes
 
 import HighLevelC.CWriter
 import HighLevelC.HLC
 import HighLevelC.HLCTypes
 import Util.Names
 
+data HList :: [*] -> * where
+  HNil  :: HList '[]
+  (:+:) :: a -> HList t -> HList (a ': t)
 
-callExt0 :: (HLCTypeable r) =>
-             ExtFunction (r) ->
-             VarArg ->
-             HLC (TypedExpr r)
-callExt0 func varArgs = do
-  HLC $ mapM_ writePreproDir $ extFunctionDirs func
-  return $ TypedExpr $ FunctionCall (LHSExpr $ LHSVar $ extFunctionName func) 
-    ([] ++
-     case func of
-       ExtFunction _ _ -> []
-       VarExtFunction _ _ -> varArgToList varArgs)
+infixr 7 :+:
 
+listToExpr' :: (ListToExpr listTy) => HList listTy -> HLC [HLCExpr]
+listToExpr' = sequence . listToExpr
+class ListToExpr listTy where
+  listToExpr :: HList listTy -> [HLC HLCExpr]
+instance ListToExpr '[] where
+  listToExpr HNil = []
+instance (ListToExpr xs) => ListToExpr ((TypedLHS x) ': xs) where
+  listToExpr (a :+: b) = (return $ LHSExpr $ untypeLHS a) : listToExpr b
+instance (ListToExpr xs) => ListToExpr (HLC (TypedExpr x) ': xs) where
+  listToExpr (a :+: b) = (fmap fromTypedExpr a) : listToExpr b
+instance (ListToExpr xs) => ListToExpr (HLC (TypedLHS x) ': xs) where
+  listToExpr (a :+: b) = (fmap (LHSExpr . untypeLHS) a) : listToExpr b
 
-callExt1 :: (HLCTypeable r,
-             RHSExpression a1 b1,
-             HLCTypeable b1, Passability b1 ~ IsPassable) =>
-             ExtFunction (b1 -> r) ->
-             a1 ->
-             VarArg ->
-             HLC (TypedExpr r)
-callExt1 func arg1 varArgs = do
-  arg1' <- rhsExpr arg1
-  HLC $ mapM_ writePreproDir $ extFunctionDirs func
-  return $ TypedExpr $ FunctionCall (LHSExpr $ LHSVar $ extFunctionName func) 
-    ([fromTypedExpr arg1'] ++
-     case func of
-       ExtFunction _ _ -> []
-       VarExtFunction _ _ -> varArgToList varArgs)
+data SomeFunction fType retType = SomeFunction String
 
+class CallExt (fType :: [*]) retType args
+instance (CallExt b retType (HList c)) =>
+         CallExt (a ': b) retType (HList (TypedLHS a ': c))
+instance (CallExt b retType (HList c)) =>
+         CallExt (a ': b) retType (HList (HLC (TypedLHS a) ': c))
+instance (CallExt b retType (HList c)) =>
+         CallExt (a ': b) retType (HList (HLC (TypedExpr a) ': c))
+instance CallExt '[] retType any 
 
-callExt2 :: (HLCTypeable r,
-             RHSExpression a1 b1,
-             RHSExpression a2 b2,
-             HLCTypeable b1, Passability b1 ~ IsPassable,
-             HLCTypeable b2, Passability b2 ~ IsPassable) =>
-             ExtFunction (b1 -> b2 -> r) ->
-             a1 ->
-             a2 ->
-             VarArg ->
-             HLC (TypedExpr r)
-callExt2 func arg1 arg2 varArgs = do
-  arg1' <- rhsExpr arg1
-  arg2' <- rhsExpr arg2
-  HLC $ mapM_ writePreproDir $ extFunctionDirs func
-  return $ TypedExpr $ FunctionCall (LHSExpr $ LHSVar $ extFunctionName func) 
-    ([fromTypedExpr arg1',fromTypedExpr arg2'] ++
-     case func of
-       ExtFunction _ _ -> []
-       VarExtFunction _ _ -> varArgToList varArgs)
+y :: ExtFunction '[HLCInt,HLCChar] HLCDouble
+y = ExtFunction (ExactSymbol "foo") []
 
+callExtFunction :: (ListToExpr args,
+                    CallExt fType retType (HList args)) =>
+                   ExtFunction fType retType -> (HList args) -> HLC (TypedExpr retType)
+callExtFunction (ExtFunction symb dirs) argList = do
+  HLC $ mapM_ writePreproDir dirs
+  untypedArgs <- listToExpr' argList
+  return $ TypedExpr $ FunctionCall (LHSExpr $ LHSVar symb) untypedArgs
 

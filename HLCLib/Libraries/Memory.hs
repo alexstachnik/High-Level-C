@@ -62,12 +62,17 @@ makeUniquePtr :: forall a a' b.
 makeUniquePtr n = do
   declareObj (Proxy :: Proxy b)
   var <- makeVar UniquePtr :: Var (UniquePtr b)
-  let numBytes = fromIntType $ hlcMul (hlcSizeof (Proxy :: Proxy b)) (rhsExpr n)
-  (var %. uniquePtrElt) =: castPtr $ callExt1 malloc numBytes NilArg
+  let numBytes = hlcMul (hlcSizeof (Proxy :: Proxy b)) (rhsExpr n)
+  (var %. uniquePtrElt) =: call_malloc numBytes
   return var
 
+uniqueArrDest :: (HLCTypeable a, Instanciable a (IsPrimitive a)) =>
+                 Proxy (UniquePtr a) ->
+                 HLC (TypedLHS (UniquePtr a)) ->
+                 HLC Context ->
+                 HLC Context
 uniqueArrDest _ this ret = do
-  exprStmt $ callExt1 freeMem (this %. uniquePtrElt) NilArg
+  exprStmt $ call_freeMem (this %. uniquePtrElt)
   ret
 
 weakRef :: (LHSExpression a (UniquePtr a'),
