@@ -71,6 +71,23 @@ makeUniquePtr n = do
   (var %. uniquePtrElt) =: call_malloc numBytes
   return var
 
+moveUniquePtr :: (HLCTypeable a',
+                  Instanciable a' (IsPrimitive a'),
+                  LHSExpression a (UniquePtr a'),
+                  LHSExpression b (UniquePtr a')) =>
+                 a -> b -> HLC ()
+moveUniquePtr left' right' = do
+  left <- hlcLHSExpr left'
+  right <- hlcLHSExpr right'
+  ifThenElseRest ((left%.uniquePtrElt) %== nullPtr)
+    id
+    (\c -> do
+        exprStmt $ call_freeMem (left%.uniquePtrElt)
+        c
+    )
+  (left%.uniquePtrElt) =: (right%.uniquePtrElt)
+  (right%.uniquePtrElt) =: nullPtr
+
 uniquePtrDest :: (HLCTypeable a, Instanciable a (IsPrimitive a)) =>
                  Proxy (UniquePtr a) ->
                  HLC (TypedLHS (UniquePtr a)) ->

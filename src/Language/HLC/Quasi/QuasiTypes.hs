@@ -54,15 +54,17 @@ generateFunction func = do
 generateFunction' funcName funcCallName (Function {..}) =
   sequence
   [dataD (return []) funcName funcTyParams [] [],
-   instanceD constraints hlcFunctionClass [thisFunDecl],
+   instanceD callConstraints hlcFunctionClass [thisFunDecl],
+   sigD funcCallName (forallT funcTyParams callConstraints [t|OutwardFacingFun $(argTyList) $(return retType)|]),
    funD funcCallName [funcCall],
-   sigD funcBody [t|FuncType $(return retType) $(argTyList)|]]
+   sigD funcBody (forallT funcTyParams callConstraints [t|FuncType $(return retType) $(argTyList)|])]
   where
     thisFunDecl = funD (mkName "thisFun") [clause [wildP] (normalB $ varE funcBody) []]
-    
-    constraints =
-      let hlcTyConstraints = map (AppT (ConT $ mkName "HLCTypeable")) tyVars in
-      return (hlcTyConstraints ++ funcTyConstraints)
+
+    callConstraints = do
+      let hlcTyConstraints = map (AppT (ConT $ mkName "HLCTypeable")) tyVars
+      instanciableConstraints <- mapM (\t -> appT (appT [t|Instanciable|] (return t)) (appT [t|IsPrimitive|] (return t))) tyVars
+      return (hlcTyConstraints ++ funcTyConstraints ++ instanciableConstraints)
 
     tyVars = map getTyVar funcTyParams
 
