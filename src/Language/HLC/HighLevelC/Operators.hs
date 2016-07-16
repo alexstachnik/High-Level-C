@@ -132,17 +132,17 @@ hlcSHR = hlcBinOp HLCSHR
 
 
 
-hlcBoolOp :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+hlcBoolOp :: (HLCTypeable t, RHSExpression a t, RHSExpression b t) =>
              HLCBinOp -> a -> b -> HLC (TypedExpr HLCBool)
 hlcBoolOp binOp lhs rhs = do
   lhs' <- rhsExpr lhs
   rhs' <- rhsExpr rhs
   return $ TypedExpr $ ExprBinOp binOp (fromTypedExpr lhs') (fromTypedExpr rhs')
 
-hlcEqual :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+hlcEqual :: (HLCTypeable t,RHSExpression a t, RHSExpression b t) =>
             a -> b -> HLC (TypedExpr HLCBool)
 hlcEqual = hlcBoolOp HLCEqual
-(%==) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
+(%==) :: (HLCTypeable t,RHSExpression a t, RHSExpression b t) =>
          a -> b -> HLC (TypedExpr HLCBool)
 (%==) = hlcEqual
 
@@ -173,18 +173,6 @@ hlcGEQ = hlcBoolOp HLCGTEQ
 (%>=) :: (HLCNumType t,RHSExpression a t, RHSExpression b t) =>
          a -> b -> HLC (TypedExpr HLCBool)
 (%>=) = hlcGEQ
-
-ptrEqual :: (RHSExpression (HLCPtr a) t, RHSExpression (HLCPtr b) t) =>
-            (HLCPtr a) -> (HLCPtr b) -> HLC (TypedExpr HLCBool)
-ptrEqual lhs rhs = do
-  lhs' <- rhsExpr lhs
-  rhs' <- rhsExpr rhs
-  return $ TypedExpr $ ExprBinOp HLCEqual (fromTypedExpr lhs') (fromTypedExpr rhs')
-
-(%*==) :: (RHSExpression (HLCPtr a) t, RHSExpression (HLCPtr b) t) =>
-          (HLCPtr a) -> (HLCPtr b) -> HLC (TypedExpr HLCBool)
-(%*==) = ptrEqual
-
 
 
 infixl 9 %.

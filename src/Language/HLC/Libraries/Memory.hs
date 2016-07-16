@@ -51,7 +51,12 @@ import Language.HLC.PostProcess.ObjectRewrite
 
 $(generateStructDesc [structDefn|UniquePtr forall a. {uniquePtrElt :: HLCPtr a} where
                                 isPassable = False
-                                destructor = uniqueArrDest |])
+                                constructor = uniquePtrCons
+                                destructor = uniquePtrDest |])
+
+uniquePtrCons _ this ret = do
+  this %. uniquePtrElt =: nullPtr
+  ret
 
 makeUniquePtr :: forall a a' b.
                  (RHSExpression a a',
@@ -66,14 +71,18 @@ makeUniquePtr n = do
   (var %. uniquePtrElt) =: call_malloc numBytes
   return var
 
-uniqueArrDest :: (HLCTypeable a, Instanciable a (IsPrimitive a)) =>
+uniquePtrDest :: (HLCTypeable a, Instanciable a (IsPrimitive a)) =>
                  Proxy (UniquePtr a) ->
                  HLC (TypedLHS (UniquePtr a)) ->
                  HLC Context ->
                  HLC Context
-uniqueArrDest _ this ret = do
-  exprStmt $ call_freeMem (this %. uniquePtrElt)
-  ret
+uniquePtrDest _ this ret = do
+  ifThenElse ((this%.uniquePtrElt) %== nullPtr)
+     ret
+     (do
+         exprStmt $ call_freeMem (this %. uniquePtrElt)
+         ret
+     )
 
 weakRef :: (LHSExpression a (UniquePtr a'),
             Instanciable a' (IsPrimitive a')) => a -> HLC (TypedLHS (HLCPtr a'))
