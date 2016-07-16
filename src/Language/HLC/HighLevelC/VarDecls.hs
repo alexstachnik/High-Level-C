@@ -34,8 +34,8 @@ type Var a = HLC (TypedLHS a)
 
 makeVar :: forall a. (HLCTypeable a,
                       Instanciable a (IsPrimitive a)) =>
-           a -> HLC (TypedLHS a)
-makeVar !_ = HLC $ do
+           HLC (TypedLHS a)
+makeVar = HLC $ do
   symb <- makeHLCSymbol_ "var"
   consCont <- makeHLCSymbol_ $ makeSafeName "conscont"
   destCont <- makeHLCSymbol_ $ makeSafeName "destcont"

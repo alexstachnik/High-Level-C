@@ -442,19 +442,19 @@ data HLCVoid = HLCVoid
 instance HLCTypeable HLCVoid where
   hlcType = TW (BaseType NotConst ILVoid)
 
-data HLCInt = HLCInt
-data HLCChar = HLCChar
-data HLCDouble = HLCDouble
-data HLCString = HLCString
-data HLCInt8 = HLCInt8
-data HLCInt16 = HLCInt16
-data HLCInt32 = HLCInt32
-data HLCInt64 = HLCInt64
-data HLCUInt8 = HLCUInt8
-data HLCUInt16 = HLCUInt16
-data HLCUInt32 = HLCUInt32
-data HLCUInt64 = HLCUInt64
-data HLCBool = HLCBool
+data HLCInt
+data HLCChar
+data HLCDouble
+data HLCString
+data HLCInt8
+data HLCInt16
+data HLCInt32
+data HLCInt64
+data HLCUInt8
+data HLCUInt16
+data HLCUInt32
+data HLCUInt64
+data HLCBool
 
   
 

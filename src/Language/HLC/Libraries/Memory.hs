@@ -61,7 +61,7 @@ makeUniquePtr :: forall a a' b.
                  a -> Var (UniquePtr b)
 makeUniquePtr n = do
   declareObj (Proxy :: Proxy b)
-  var <- makeVar UniquePtr :: Var (UniquePtr b)
+  var <- makeVar :: Var (UniquePtr b)
   let numBytes = hlcMul (hlcSizeof (Proxy :: Proxy b)) (rhsExpr n)
   (var %. uniquePtrElt) =: call_malloc numBytes
   return var
